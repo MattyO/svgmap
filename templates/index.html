@@ -1,0 +1,55 @@
+<html>
+  <head>
+    <script src="http://code.jquery.com/jquery-3.3.1.min.js"></script>
+  </head>
+
+  <body>
+  <script type="text/javascript">
+$(document).ready(function(){
+  var downposition = [];
+  
+  $("#map").mouseup(function(e){
+      var endx = e.pageX - $(this).offset().left;
+      var endy = e.pageY - $(this).offset().top;
+    window.location = "/?startx="+downposition[0] + "&starty=" + downposition[1] + '&endx=' +endx + "&endy="+endy;
+
+  })
+  $("#map").mousedown(function(e){
+    downposition = [e.pageX - $(this).offset().left, e.pageY - $(this).offset().top];
+    console.log(downposition) 
+  })
+  $("#map").mousemove(function(e){
+    if(downposition.length ==2){
+      console.log('in if');
+      console.log(downposition.length);
+      var width = ( e.pageX - $(this).offset().left) - downposition[0];
+      var height = (e.pageY - $(this).offset().top) - downposition[1];
+      console.log(width);
+      console.log(height);
+
+      $("#bounding").attr("x", downposition[0]);
+      $("#bounding").attr("y", downposition[1]);
+      $("#bounding").attr('width', width );
+      $("#bounding").attr('height', height);
+
+    }
+  })
+})
+  </script>
+  <h1> test</h1>
+  <div style="border: 1px solid black; display: inline-block">
+    <svg height="180" width="360" id='map'>
+      {% for line in lines %}
+        <line 
+        style="stroke:rgb(0,0,0);stroke-width:1"  
+        x1="{{line.start[0]}}" 
+        y1="{{line.start[1]}}" 
+        x2="{{line.end[0]}}" 
+        y2="{{line.end[1]}}"/>
+      {% endfor %}
+        <rect id="bounding" x="0" y="0" width="0" height="0" fill-opacity='0.0' style="stroke:red;stroke-width:1;" />
+
+    </svg>
+  </div>
+  </body>
+</html>
