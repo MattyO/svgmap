@@ -11,7 +11,7 @@ $(document).ready(function(){
   $("#map").mouseup(function(e){
       var endx = e.pageX - $(this).offset().left;
       var endy = e.pageY - $(this).offset().top;
-    window.location = "/?startx="+downposition[0] + "&starty=" + downposition[1] + '&endx=' +endx + "&endy="+endy;
+    window.location = "/?startx="+parseInt(downposition[0]) + "&starty=" + parseInt(downposition[1]) + '&endx=' +parseInt(endx) + "&endy="+parseInt(endy);
 
   })
   $("#map").mousedown(function(e){
@@ -37,8 +37,9 @@ $(document).ready(function(){
 })
   </script>
   <h1> test</h1>
+  <a href="/">Reset</a>
   <div style="border: 1px solid black; display: inline-block">
-    <svg height="180" width="360" id='map'>
+    <svg height="{{height}}" width="{{width}}" id='map'>
       {% for line in lines %}
         <line 
         style="stroke:rgb(0,0,0);stroke-width:1"  
