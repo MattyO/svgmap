@@ -15,7 +15,7 @@ Bounds = namedtuple('Bounds', ['topleft', 'bottomright'], verbose=True)
 def is_in_bounds(bounds, point):
     return point.lat < bounds.topleft.lat and point.lat > bounds.bottomright.lat and point.lon > bounds.topleft.lon and point.lon < bounds.bottomright.lon
 
-def map_point(totalbounds, bounds, point):
+def map_point(totalbounds, bounds, point, debug=False):
     width  = totalbounds.bottomright.lon - totalbounds.topleft.lon
     #print(width  )
     height = totalbounds.topleft.lat- totalbounds.bottomright.lat
@@ -31,9 +31,10 @@ def map_point(totalbounds, bounds, point):
     percentx = (point.lon - bounds.topleft.lon) / bounds_width
     #print(percentx)
     percenty = (point.lat - bounds.bottomright.lat) / bounds_height
-    if percentx  > 1 or percentx < 0 or percenty > 1 or percenty < 1:
+    if debug == True:
+        print(percentx)
+        print(percenty)
         print(is_in_bounds(bounds, point))
-        print('start of ex')
         print(bounds)
         print(point)
         print(width)
@@ -42,7 +43,6 @@ def map_point(totalbounds, bounds, point):
         print(bounds_height)
         print(percentx)
         print(percenty)
-        raise Exception("persent is 0")
     #print(percenty)
 
     #print(totalbounds.topleft.lon)
@@ -62,9 +62,9 @@ totalbounds  = Bounds(topleft=Point(lat=81, lon=-178), bottomright=Point(lat=-80
 bounds = Bounds(topleft=Point(lat=81, lon=-178), bottomright=Point(lat=0, lon=0))
 
 print('find me')
-print(map_point(totalbounds, bounds, Point(lat=80, lon=-177)))
-print(map_point(totalbounds, bounds, Point(lat=40, lon=-89)))
-print(map_point(totalbounds, bounds, Point(lat=1, lon=-1)))
+#print(map_point(totalbounds, bounds, Point(lat=80, lon=-177)))
+#print(map_point(totalbounds, bounds, Point(lat=40, lon=-89)))
+#print(map_point(totalbounds, bounds, Point(lat=1, lon=-1)))
 #raise Exception("test")
 
 
@@ -100,37 +100,64 @@ def index():
 
 
     lines = []
-    for shape in shapes:
+    print('interesting')
+    print(shapes[190]['geometry']['coordinates'][460:470])
+    print('interesting')
+    for si, shape in enumerate(shapes):
         points = shape['geometry']['coordinates']
         first_point = points[0]
-        for point in points[1:-1]:
+        numskipped = 0
+        fpi = 0
+        for pi, point in enumerate(points[1:-1]):
             if int(point[0]) == int(first_point[0]) and int(point[1]) == int(first_point[1]):
                 continue
 
+
             if bounds != None and (not is_in_bounds(bounds, Point(lat=point[1], lon=point[0])) or not is_in_bounds(bounds, Point(lat=first_point[1], lon=first_point[0]))):
                 first_point = point
+                fpi = pi
                 continue
 
             if bounds != None:
                 #print('first point', file=sys.stderr)
                 #print(first_point, file=sys.stderr)
                 #print(point, file=sys.stderr)
-                first_point = map_point(totalbounds, bounds, Point(lat=first_point[1], lon=first_point[0]))
-                point = map_point(totalbounds, bounds, Point(lat=point[1], lon=point[0]))
+                a = first_point
+                b = point
+                mfirst_point = map_point(totalbounds, bounds, Point(lat=first_point[1], lon=first_point[0]))
+                mpoint = map_point(totalbounds, bounds, Point(lat=point[1], lon=point[0]))
+
+                if math.sqrt(math.pow(first_point[0] - point[0], 2) + math.pow(first_point[1] - point[1], 2)) > 200:
+                    print(si)
+                    print(fpi)
+                    print(pi)
+                    print(a)
+                    print(b)
+                    print(first_point)
+                    print(point)
+                    print('debug a')
+                    print(map_point(totalbounds, bounds, Point(lat=a[1], lon=a[0]), debug=True))
+                    print('debug b')
+                    print(map_point(totalbounds, bounds, Point(lat=b[1], lon=b[0]), debug=True))
+                    raise Exception('should be this long')
                 #print(first_point, file=sys.stderr)
                 #print(point, file=sys.stderr)
                 #raise Exception('first point')
+            else:
+                mfirst_point = first_point
+                mpoint = point
 
             lines.append(Line(
                 start=(
-                    first_point[0] + math.fabs(western), 
-                    height-(first_point[1]+math.fabs(southern))
+                    mfirst_point[0] + math.fabs(western), 
+                    height-(mfirst_point[1]+math.fabs(southern))
                 ), 
                 end=(
-                    point[0] + math.fabs(western), 
-                    height-(point[1]+math.fabs(southern))
+                    mpoint[0] + math.fabs(western), 
+                    height-(mpoint[1]+math.fabs(southern))
                 )
             ))
             first_point = point
+            fpi = pi
 
     return render_template('index.html', lines=lines, height=height, width=width)
