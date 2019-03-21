@@ -109,7 +109,7 @@ def index():
         numskipped = 0
         fpi = 0
         for pi, point in enumerate(points[1:-1]):
-            if int(point[0]) == int(first_point[0]) and int(point[1]) == int(first_point[1]):
+            if bounds == None and int(point[0]) == int(first_point[0]) and int(point[1]) == int(first_point[1]):
                 continue
 
 
