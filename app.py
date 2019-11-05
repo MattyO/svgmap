@@ -3,6 +3,8 @@ from collections import namedtuple
 import fiona
 import sys
 import math
+import time
+from datetime import datetime
 
 
 app= Flask(__name__)
@@ -67,7 +69,83 @@ print('find me')
 #print(map_point(totalbounds, bounds, Point(lat=1, lon=-1)))
 #raise Exception("test")
 
+time_data = [
+["01-01-2018",266.0],
+["01-02-2018",145.9],
+["01-03-2018",183.1],
+["01-04-2018",119.3],
+["01-05-2018",180.3],
+["01-06-2018",168.5],
+["01-07-2018",231.8],
+["01-08-2018",224.5],
+["01-09-2018",192.8],
+["01-10-2018",122.9],
+["01-11-2018",336.5],
+["01-12-2018",185.9],
+["02-01-2019",194.3],
+["02-02-2019",149.5],
+["02-03-2019",210.1],
+["02-04-2019",273.3],
+["02-05-2019",191.4],
+["02-06-2019",287.0],
+["02-07-2019",226.0],
+["02-08-2019",303.6],
+["02-09-2019",289.9],
+["02-10-2019",421.6],
+["02-11-2019",264.5],
+["02-12-2019",342.3],
+["03-01-2020",339.7],
+["03-02-2020",440.4],
+["03-03-2020",315.9],
+["03-04-2020",439.3],
+["03-05-2020",401.3],
+["03-06-2020",437.4],
+["03-07-2020",575.5],
+["03-08-2020",407.6],
+["03-09-2020",682.0],
+["03-10-2020",475.3],
+["03-11-2020",581.3],
+["03-12-2020",646.9]]
 
+@app.route('/graph')
+def graph():
+    global time_data
+    temp_data = []
+    for t,d in time_data:
+        temp_data.append([datetime.strptime('%d-%m-%Y', t).timestamp(), d])
+    padding = 20
+    height=200
+    width=500
+    data_count = len(time_data)
+    height_window = height - (2*padding)
+    width_window = width - (2*padding)
+    datamin=90
+    datamax = 700
+    data_range = datamin - datamin
+    timemin = time_data[0][0]
+    timemax = time_data[data_count -1][0]
+    timerange = timemax.timestamp() - timemin.timestamp()
+    xmin = padding
+    xmax = width - padding
+    ymin = padding
+    ymax = height - padding
+
+    new_data = []
+    for t, d in time_data:
+        tratio = t / timerange
+        dration = d / data_range
+
+
+
+    xaxis = Line(
+        start=(padding, padding),
+        end=(padding, height-padding))
+    yaxis = Line(
+            start=(padding, height-padding),
+            end=(width-padding, height-padding))
+
+
+    return render_template('graph.html', height=height, width=width, xaxis=xaxis, yaxis=yaxis)
 
 
 @app.route('/')
