@@ -4,7 +4,7 @@ import fiona
 import sys
 import math
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 app= Flask(__name__)
@@ -107,35 +107,63 @@ time_data = [
 ["03-11-2020",581.3],
 ["03-12-2020",646.9]]
 
+def to_timestamp(time_data, i):
+    temp_data = []
+
+    for d in time_data:
+        new_datum = datetime.strptime(d[i], "%d-%m-%Y").timestamp()
+        temp_data.append(d[0:i] + [new_datum] + d[(i+1):len(d)])
+    return temp_data
+
+#def find_meta_data(time_data):
+#    array_len = len(time_data[0])
+#    r_dict= {
+#        'data_type': type(time_data)
+#    }
+#    for i in range(0,i):
+#        column_data = [ foo[i] for foo in time_data ]
+#        r_dict[i] = {
+#            'min': min(column_data),
+#            'max': max(column_data),
+#            'type': type(next(column_data))
+#        }
+#    return r_dict
+
+def scale(data_array, i, start_range, end_range):
+    start_min = start_range[0]
+    start_max = start_range[1]
+    end_min = end_range[0]
+    end_max = end_range[1]
+
+    end_max - end_min
+    return [ d[0:i] + [((d[i] - start_min)  / (start_max - start_min) *  (end_max - end_min)) + end_min] + d[(i+1):len(d)] for d in data_array]
+
 @app.route('/graph')
 def graph():
     global time_data
-    temp_data = []
-    for t,d in time_data:
-        temp_data.append([datetime.strptime('%d-%m-%Y', t).timestamp(), d])
-    padding = 20
-    height=200
-    width=500
-    data_count = len(time_data)
-    height_window = height - (2*padding)
-    width_window = width - (2*padding)
+    #mdata = find_meta_data(time_data)
+    time_data = to_timestamp(time_data, 0)
+
+    padding = 30
+    height=300
+    width=600
     datamin=90
     datamax = 700
-    data_range = datamin - datamin
-    timemin = time_data[0][0]
-    timemax = time_data[data_count -1][0]
-    timerange = timemax.timestamp() - timemin.timestamp()
-    xmin = padding
-    xmax = width - padding
-    ymin = padding
-    ymax = height - padding
+    datemin = min([ d[0] for d in time_data])
+    datemax = max([ d[0] for d in time_data])
 
-    new_data = []
-    for t, d in time_data:
-        tratio = t / timerange
-        dration = d / data_range
+    datemin = (datetime.fromtimestamp(datemin).replace(day=1, hour=0, minute=0, second=0) - timedelta(days=1)).replace(day=1).timestamp()
+    datemax = (datetime.fromtimestamp(datemax).replace(day=1, hour=0, minute=0, second=0) - timedelta(days=1)).replace(day=1).timestamp()
 
+    time_data = scale(time_data, 0, [datemin, datemax], [padding, width - (padding*2)])
+    time_data = scale(time_data, 1, [datamin, datamax], [height - padding, padding])
 
+    time_lines = []
+    for tdi in range(0, len(time_data)-1):
+        time_lines.append(Line(
+            start=(time_data[tdi][0], time_data[tdi][1]),
+            end=(time_data[tdi+1][0], time_data[tdi+1][1])
+        ))
 
     xaxis = Line(
         start=(padding, padding),
@@ -145,7 +173,7 @@ def graph():
             end=(width-padding, height-padding))
 
 
-    return render_template('graph.html', height=height, width=width, xaxis=xaxis, yaxis=yaxis)
+    return render_template('graph.html', height=height, width=width, xaxis=xaxis, yaxis=yaxis, time_data=time_data, time_lines=time_lines)
 
 
 @app.route('/')
