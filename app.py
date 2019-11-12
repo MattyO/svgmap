@@ -2,6 +2,7 @@ from flask import Flask, render_template, request
 from collections import namedtuple
 import fiona
 import sys
+import copy
 import math
 import time
 from datetime import datetime, timedelta
@@ -69,7 +70,8 @@ print('find me')
 #print(map_point(totalbounds, bounds, Point(lat=1, lon=-1)))
 #raise Exception("test")
 
-time_data = [
+def time_datas():
+    return [
 ["01-01-2018",266.0],
 ["01-02-2018",145.9],
 ["01-03-2018",183.1],
@@ -140,20 +142,32 @@ def scale(data_array, i, start_range, end_range):
 
 @app.route('/graph')
 def graph():
-    global time_data
+    time_data = time_datas()
     #mdata = find_meta_data(time_data)
     time_data = to_timestamp(time_data, 0)
 
     padding = 30
     height=300
     width=600
-    datamin=90
+    datamin=0
     datamax = 700
+    tic_length = 5
     datemin = min([ d[0] for d in time_data])
     datemax = max([ d[0] for d in time_data])
 
     datemin = (datetime.fromtimestamp(datemin).replace(day=1, hour=0, minute=0, second=0) - timedelta(days=1)).replace(day=1).timestamp()
     datemax = (datetime.fromtimestamp(datemax).replace(day=1, hour=0, minute=0, second=0) - timedelta(days=1)).replace(day=1).timestamp()
+
+    scale_data_num = [0, 100, 200, 300, 400, 500, 600, 700]
+    scale_time = [100, 200, 300, 400, 500, 600, 700]
+
+    scale_data = [ list(t) for t in zip([padding] *len(scale_data_num), scale_data_num)]
+    scale_data_start = scale(scale_data, 1, [datamin, datamax], [height - padding, padding])
+    scale_data_end = [ [sde[0]-tic_length, sde[1]]  for sde in copy.copy(scale_data_start)]
+    scale_data_text = zip([ str(sdn) for sdn in scale_data_num], scale_data_end)
+    #import pdb; pdb.set_trace()
+    scale_data_points = zip(scale_data_start, scale_data_end)
+    scale_data_lines = [Line(start=s,end=e) for (s,e) in scale_data_points ]
 
     time_data = scale(time_data, 0, [datemin, datemax], [padding, width - (padding*2)])
     time_data = scale(time_data, 1, [datamin, datamax], [height - padding, padding])
@@ -165,15 +179,15 @@ def graph():
             end=(time_data[tdi+1][0], time_data[tdi+1][1])
         ))
 
-    xaxis = Line(
+    yaxis = Line(
         start=(padding, padding),
         end=(padding, height-padding))
-    yaxis = Line(
+    xaxis  = Line(
             start=(padding, height-padding),
             end=(width-padding, height-padding))
 
 
-    return render_template('graph.html', height=height, width=width, xaxis=xaxis, yaxis=yaxis, time_data=time_data, time_lines=time_lines)
+    return render_template('graph.html', height=height, width=width, xaxis=xaxis, yaxis=yaxis, time_data=time_data, time_lines=time_lines, scale_data_lines=scale_data_lines, scale_data_text=scale_data_text)
 
 
 @app.route('/')

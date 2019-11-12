@@ -8,17 +8,33 @@
   <div style="border: 1px solid black; display: inline-block" >
     <svg height="{{height}}" width="{{width}}" id='map' >
         <line 
-        style="stroke:rgb(0,0,0);stroke-width:1"  
+        shape-rendering="crispEdges"
+        style="stroke:rgb(0,0,0)"  
           x1="{{xaxis.start[0]}}" 
           y1="{{xaxis.start[1]}}" 
           x2="{{xaxis.end[0]}}" 
           y2="{{xaxis.end[1]}}"/>
         <line 
-          style="stroke:rgb(0,0,0);stroke-width:1"  
+          shape-rendering="crispEdges"
+          style="stroke:rgb(0,0,0)"  
           x1="{{yaxis.start[0]}}" 
           y1="{{yaxis.start[1]}}" 
           x2="{{yaxis.end[0]}}" 
           y2="{{yaxis.end[1]}}"/>
+
+        {% for sdl in scale_data_lines %}
+        <line 
+          shape-rendering="crispEdges"
+          style="stroke:rgb(0,0,0)"  
+          x1="{{sdl.start[0]}}" 
+          y1="{{sdl.start[1]}}" 
+          x2="{{sdl.end[0]}}" 
+          y2="{{sdl.end[1]}}"/>
+        {%endfor%}
+        {% for (t, sdt) in scale_data_text%}
+          <text style="font-size: 12px" text-anchor="end" x="{{sdt[0]}}" y="{{sdt[1]}}">{{t}}</text>
+        {%endfor%}
+
 
         {% for d in time_data %}
           <circle cx="{{d[0]}}" cy="{{d[1]}}" r="2"/>
@@ -26,7 +42,8 @@
 
         {% for tl in time_lines %}
           <line 
-            style="stroke:rgb(0,0,0);stroke-width:1; "  
+            shape-rendering="geometricPrecision"
+            style="stroke:rgb(0,0,0);stroke-width:0.5; "  
             x1="{{tl.start[0]}}" 
             y1="{{tl.start[1]}}" 
             x2="{{tl.end[0]}}" 
