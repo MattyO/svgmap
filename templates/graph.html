@@ -31,6 +31,15 @@
           x2="{{sdl.end[0]}}" 
           y2="{{sdl.end[1]}}"/>
         {%endfor%}
+        {% for sdl in scale_date_lines %}
+        <line 
+          shape-rendering="crispEdges"
+          style="stroke:rgb(0,0,0)"  
+          x1="{{sdl.start[0]}}" 
+          y1="{{sdl.start[1]}}" 
+          x2="{{sdl.end[0]}}" 
+          y2="{{sdl.end[1]}}"/>
+        {%endfor%}
         {% for (t, sdt) in scale_data_text%}
           <text style="font-size: 12px" text-anchor="end" x="{{sdt[0]}}" y="{{sdt[1]}}">{{t}}</text>
         {%endfor%}

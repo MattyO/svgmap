@@ -155,19 +155,41 @@ def graph():
     datemin = min([ d[0] for d in time_data])
     datemax = max([ d[0] for d in time_data])
 
-    datemin = (datetime.fromtimestamp(datemin).replace(day=1, hour=0, minute=0, second=0) - timedelta(days=1)).replace(day=1).timestamp()
-    datemax = (datetime.fromtimestamp(datemax).replace(day=1, hour=0, minute=0, second=0) - timedelta(days=1)).replace(day=1).timestamp()
+    datemin_date = (datetime.fromtimestamp(datemin).replace(day=1, hour=0, minute=0, second=0) - timedelta(days=1)).replace(day=1)
+    datemax_date  = (datetime.fromtimestamp(datemax).replace(day=1, hour=0, minute=0, second=0) - timedelta(days=1)).replace(day=1)
+    datemin = datemin_date.timestamp()
+    datemax = datemax_date.timestamp()
+
+    scale_time = []
+    scale_time.append(datemin_date)
+    i = 0
+    initial_date = datemin_date
+    while(scale_time[-1] < datemax_date):
+        i += 1
+        months = int((i+initial_date.month) % 12)
+        if months == 0: months = initial_date.month
+        years = initial_date.year + int((i+initial_date.month) / 12)
+        if months > 12 or months <= 0:
+            import pdb; pdb.set_trace()
+        scale_time.append(initial_date.replace(year=years, month=months))
+
+    scale_timestamps = [ st.timestamp() for st in scale_time ]
 
     scale_data_num = [0, 100, 200, 300, 400, 500, 600, 700]
-    scale_time = [100, 200, 300, 400, 500, 600, 700]
 
     scale_data = [ list(t) for t in zip([padding] *len(scale_data_num), scale_data_num)]
     scale_data_start = scale(scale_data, 1, [datamin, datamax], [height - padding, padding])
     scale_data_end = [ [sde[0]-tic_length, sde[1]]  for sde in copy.copy(scale_data_start)]
     scale_data_text = zip([ str(sdn) for sdn in scale_data_num], scale_data_end)
-    #import pdb; pdb.set_trace()
     scale_data_points = zip(scale_data_start, scale_data_end)
     scale_data_lines = [Line(start=s,end=e) for (s,e) in scale_data_points ]
+
+
+    scale_date_data = [ list(t) for t in zip(scale_timestamps , [height - padding] * len(scale_timestamps))]
+    scale_date_data_start = scale(scale_date_data, 0, [datemin, datemax], [padding, width - (padding*2)])
+    scale_date_data_end = [ [sde[0], sde[1]+tic_length]  for sde in copy.copy(scale_date_data_start )]
+    scale_date_points = zip(scale_date_data_start, scale_date_data_end)
+    scale_date_lines = [Line(start=s,end=e) for (s,e) in scale_date_points]
 
     time_data = scale(time_data, 0, [datemin, datemax], [padding, width - (padding*2)])
     time_data = scale(time_data, 1, [datamin, datamax], [height - padding, padding])
@@ -187,7 +209,7 @@ def graph():
             end=(width-padding, height-padding))
 
 
-    return render_template('graph.html', height=height, width=width, xaxis=xaxis, yaxis=yaxis, time_data=time_data, time_lines=time_lines, scale_data_lines=scale_data_lines, scale_data_text=scale_data_text)
+    return render_template('graph.html', height=height, width=width, xaxis=xaxis, yaxis=yaxis, time_data=time_data, time_lines=time_lines, scale_data_lines=scale_data_lines, scale_data_text=scale_data_text, scale_date_lines=scale_date_lines)
 
 
 @app.route('/')
