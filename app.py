@@ -5,6 +5,7 @@ import sys
 import copy
 import math
 import time
+from pprint import pprint
 from datetime import datetime, timedelta
 
 
@@ -140,6 +141,26 @@ def scale(data_array, i, start_range, end_range):
     end_max - end_min
     return [ d[0:i] + [((d[i] - start_min)  / (start_max - start_min) *  (end_max - end_min)) + end_min] + d[(i+1):len(d)] for d in data_array]
 
+
+def date_list(min_date, max_date):
+    fill = []
+    full_fill = []
+    for year in range(min_date.year, max_date.year + 1):
+      if year == min_date.year:
+        t_months = [min_date.month, 13]
+      elif year == max_date.year:
+            t_months = [1,max_date.month + 1]
+      else:
+        t_months = [1,13]
+      fill.append((year, t_months))
+
+    for year, months in fill:
+        for m in range(*months):
+            full_fill.append([year, m])
+
+    return [ datetime(y,m, 1, 0, 0) for [y, m] in full_fill ] 
+
+
 @app.route('/graph')
 def graph():
     time_data = time_datas()
@@ -148,7 +169,7 @@ def graph():
 
     padding = 30
     height=300
-    width=600
+    width=800
     datamin=0
     datamax = 700
     tic_length = 5
@@ -160,20 +181,9 @@ def graph():
     datemin = datemin_date.timestamp()
     datemax = datemax_date.timestamp()
 
-    scale_time = []
-    scale_time.append(datemin_date)
-    i = 0
-    initial_date = datemin_date
-    while(scale_time[-1] < datemax_date):
-        i += 1
-        months = int((i+initial_date.month) % 12)
-        if months == 0: months = initial_date.month
-        years = initial_date.year + int((i+initial_date.month) / 12)
-        if months > 12 or months <= 0:
-            import pdb; pdb.set_trace()
-        scale_time.append(initial_date.replace(year=years, month=months))
-
+    scale_time = date_list(datemin_date, datemax_date)
     scale_timestamps = [ st.timestamp() for st in scale_time ]
+    scale_text =[ str(d.year) if d.month == 1 else str(d.month) for d in scale_time ]
 
     scale_data_num = [0, 100, 200, 300, 400, 500, 600, 700]
 
@@ -190,6 +200,7 @@ def graph():
     scale_date_data_end = [ [sde[0], sde[1]+tic_length]  for sde in copy.copy(scale_date_data_start )]
     scale_date_points = zip(scale_date_data_start, scale_date_data_end)
     scale_date_lines = [Line(start=s,end=e) for (s,e) in scale_date_points]
+    scale_date_text =zip(scale_text, [[x,y+ 10] for (x, y) in scale_date_data_end])
 
     time_data = scale(time_data, 0, [datemin, datemax], [padding, width - (padding*2)])
     time_data = scale(time_data, 1, [datamin, datamax], [height - padding, padding])
@@ -208,8 +219,7 @@ def graph():
             start=(padding, height-padding),
             end=(width-padding, height-padding))
 
-
-    return render_template('graph.html', height=height, width=width, xaxis=xaxis, yaxis=yaxis, time_data=time_data, time_lines=time_lines, scale_data_lines=scale_data_lines, scale_data_text=scale_data_text, scale_date_lines=scale_date_lines)
+    return render_template('graph.html', height=height, width=width, xaxis=xaxis, yaxis=yaxis, time_data=time_data, time_lines=time_lines, scale_data_lines=scale_data_lines, scale_data_text=scale_data_text, scale_date_lines=scale_date_lines, scale_date_text=scale_date_text)
 
 
 @app.route('/')
