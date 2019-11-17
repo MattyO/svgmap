@@ -161,6 +161,35 @@ def date_list(min_date, max_date):
     return [ datetime(y,m, 1, 0, 0) for [y, m] in full_fill ] 
 
 
+
+g = graph(Viewport(300, 800, padding=30))
+#g.create.line(DataCollection(data, properties=[Property(name, callable), Property(name, int), 'property_name']), x='property_name', y='property_name')
+dc = DataCollection(
+    time_datas(), 
+    properties=[
+        Property('month', 0, parse=lambda t: datetime.strptime(t, "%d-%m-%Y"), convert=lambda t: t.timestamp()), 
+        Property('count', 1)
+    ]
+)
+g.create.line(dc, name='counts', x='count', y='month')
+g.create.axis(Y(dc.property.month), min=0, max=700, step=100)
+g.create.axis(X, collection=date_list(dc.meta.y.min, dc.meta.y.max))
+
+#dc.meta.property_name.min
+#dc.meta.property_name.max
+#dc.meta.property_name.difference
+#dc.meta.property_name.count
+#dc.meta.x.min
+#dc.meta.x.max
+#dc.meta.x.difference
+
+
+graph.plot.objects()
+#graph.plot.svg()
+#graph.plot.img()
+#graph.plot.jpeg()
+
+
 @app.route('/graph')
 def graph():
     time_data = time_datas()
@@ -177,13 +206,13 @@ def graph():
     datemax = max([ d[0] for d in time_data])
 
     datemin_date = (datetime.fromtimestamp(datemin).replace(day=1, hour=0, minute=0, second=0) - timedelta(days=1)).replace(day=1)
-    datemax_date  = (datetime.fromtimestamp(datemax).replace(day=1, hour=0, minute=0, second=0) - timedelta(days=1)).replace(day=1)
+    datemax_date  = (datetime.fromtimestamp(datemax).replace(day=1, hour=0, minute=0, second=0) + timedelta(days=1)).replace(day=1)
     datemin = datemin_date.timestamp()
     datemax = datemax_date.timestamp()
 
     scale_time = date_list(datemin_date, datemax_date)
     scale_timestamps = [ st.timestamp() for st in scale_time ]
-    scale_text =[ str(d.year) if d.month == 1 else str(d.month) for d in scale_time ]
+    scale_text =[ str(d.year) if d.month == 1 else "" for d in scale_time ]
 
     scale_data_num = [0, 100, 200, 300, 400, 500, 600, 700]
 
