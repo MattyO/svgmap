@@ -2,6 +2,7 @@ from collections import namedtuple
 
 Line = namedtuple('Line', ['start', 'end'], verbose=True)
 Point = namedtuple('Point', ['x', 'y'], verbose=True)
+Tick = namedtuple('Tick', ['line', 'text'], verbose=True)
 
 def Struct(**kwargs):
     return namedtuple('Struct', ' '.join(kwargs.keys()))(**kwargs)
@@ -13,18 +14,18 @@ class Viewport(object):
         self.padding=padding
 
     @property
-    def drawable
+    def drawable(self):
         return Struct(
-                    width   = self.width-(self.padding*2), 
-                    height  = self.height - (self.padding*2)
-                    left    = self.padding
-                    right   = self.width - padding
-                    top     = height-padding
-                    bottom  = padding
+                    width   = self.width-(self.padding*2),
+                    height  = self.height - (self.padding*2),
+                    left    = self.padding,
+                    right   = self.width - padding,
+                    top     = height-padding,
+                    bottom  = padding,
                 )
 
 def AxisBase(object):
-    def set(self, minimum=None, maximum=None, step=None, collection)
+    def set(self, minimum=None, maximum=None, step=None, collection=collection):
         self.min = minimum
         self.max = maximum
         self.step = step
@@ -43,7 +44,7 @@ def Property(object):
     def value(item):
         return parse(item)
 
-    def graphable(item)
+    def graphable(item):
         return convert(parse(item))
 
 def MetaInfo(object):
@@ -54,7 +55,7 @@ def MetaInfo(object):
         self.type = next(set([type(prop.get(d)) for d in data]), None)
 
 class MetaProxy(object):
-    def __init__(self, data_collection)
+    def __init__(self, data_collection):
         self.data_collection = data_collection
 
     def __getattr__(self, attr):
@@ -62,7 +63,7 @@ class MetaProxy(object):
         return MetaInfo(self.DataCollection.data, prop)
 
 class DataCollection(object):
-    def __init__(self, data, properties=None):kj:W
+    def __init__(self, data, properties=None):
         self.data = data
         self.properties = properties
 
@@ -73,11 +74,11 @@ class DataCollection(object):
 class Graph(object):
     def __init__(self, viewport):
         self.viewport = viewport
-        self.plot_objects
+        self.plot_objects = []
         self.axis = []
 
     @property
-    def create(self)
+    def create(self):
         return CreateFactory(self)
 
 
@@ -89,6 +90,6 @@ class CreateFactory(object):
         self.ax
         pass
 
-    def line(self)
-        self.graph.line_objects.append(
+    def line(self):
         pass
+        #self.graph.line_objects.append(

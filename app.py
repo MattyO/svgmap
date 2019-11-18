@@ -172,7 +172,7 @@ dc = DataCollection(
     ]
 )
 g.create.line(dc, name='counts', x='count', y='month')
-g.create.axis(Y(dc.property.month), min=0, max=700, step=100)
+g.create.axis(Y(dc.properties.month), min=0, max=700, step=100)
 g.create.axis(X, collection=date_list(dc.meta.y.min, dc.meta.y.max))
 
 #dc.meta.property_name.min
