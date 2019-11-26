@@ -1,7 +1,17 @@
 import unittest
-import graph
+from collections import namedtuple
 from datetime import datetime
-from graph import Struct
+
+from graph import Struct, Line
+import graph
+
+
+def r_struct_to_dict(struct):
+
+    if(isinstance(struct, list)):
+        return [ r_struct_to_dict(t) for t in struct ]
+
+    return {key: r_struct_to_dict(value) if getattr(value, '_fields', None) != None else value  for key, value in struct._asdict().items()}
 
 class ViewportTest(unittest.TestCase):
     def struct_to_dict(self,struct):
@@ -47,14 +57,27 @@ class GraphTest(unittest.TestCase):
         self.g = graph.Graph(graph.Viewport(graph.Y.size(300, inverse=True), graph.X.size(800), padding=30))
 
     def test_create_line(self):
-        data = [(0,0), (0,1), (0,10)]
+        data = [(0,0), (5,1), (10,10)]
         dc = graph.DataCollection(data, graph.Property('month', 1), graph.Property('count', 0) )
         self.g.create.line(dc,'counts', graph.X('count'), graph.Y('month'))
 
-        self.assertEqual(self.g.plot_objects['counts'], [])
+        self.assertEqual(r_struct_to_dict(
+            self.g.plot_objects['counts']),
+            r_struct_to_dict([
+                Line(start=Struct(X=30,Y=270), end=Struct(X=400,Y=((240*.9)+30))),
+                Line(start=Struct(X=400,Y=((240*.9)+30)), end=Struct(X=770,Y=30)),
+            ]))
 
     def test_create_x_axis(self):
-        self.g.create.axis(graph.X, name='counts')
+        pass
+        #self.g.create.axis(graph.X, name='counts', collection=[])
 
 
-        self.assertEqual(self.g.axis[graph.X], [Line, Tick])
+        #self.assertEqual(self.g.axis[graph.X], [Line, Tick])
+
+    def test_create_axis_effects_data_plotting(self):
+        pass
+
+    def test_create_stacked(self):
+        pass
+        #self.g.create.line(dc,'counts', graph.X('count'), graph.X('count2'), graph.Y('month'), stack=graph.X))

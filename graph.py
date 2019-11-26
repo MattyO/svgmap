@@ -6,6 +6,15 @@ Line = namedtuple('Line', ['start', 'end'], verbose=True)
 Point = namedtuple('Point', ['x', 'y'], verbose=True)
 Tick = namedtuple('Tick', ['line', 'text'], verbose=True)
 
+def single_scale(num, start_range, end_range):
+    start_min = start_range[0]
+    start_max = start_range[1]
+    end_min = end_range[0]
+    end_max = end_range[1]
+
+    end_max - end_min
+    return ((num - start_min)  / (start_max - start_min) *  (end_max - end_min)) + end_min
+
 def pairwise(iterable):
     "s -> (s0,s1), (s1,s2), (s2, s3), ..."
     a, b = tee(iterable)
@@ -22,7 +31,7 @@ class Viewport(object):
 
     @property
     def drawable(self):
-        return Struct(**reduce(lambda d1, d2: {**d1, **d2}, [a.cls.drawable_info(a.size, self.padding) for a in self.axis ]))
+        return Struct(**reduce(lambda d1, d2: {**d1, **d2}, [a.cls.drawable_info(a, self.padding) for a in self.axis ]))
 
 class AxisBase(object):
     def __repr__(self):
@@ -37,32 +46,34 @@ class AxisBase(object):
 
     @classmethod
     def size(cls, num, inverse=False):
-        return Struct(cls=cls, size=num)
+        return Struct(cls=cls, size=num, inverse=inverse)
 
 class X(AxisBase):
     @classmethod
-    def drawable_info(self, size, padding):
+    def drawable_info(self, a, padding):
         return {
-                'width' : size - (padding*2),
+                'width' : a.size - (padding*2),
                 'left' : padding,
-                'right': size - padding,
+                'right': a.size - padding,
                 }
 
-    def scale(drawable_info, num):
-        #return lambda mi, ma: scale(num, [mi, ma], [drawable_info.left, drawable_info.right])
-        return [drawable_info.left, drawable_info.right]
+    def scale(self, drawable_info, num):
+        return lambda mi, ma: single_scale(num, [mi, ma], [drawable_info.left, drawable_info.right])
+        #return [drawable_info.left, drawable_info.right]
 
 class Y(AxisBase):
     @classmethod
-    def drawable_info(self, size, padding):
+    def drawable_info(self, a, padding):
         return {
-                'height': size - (padding*2),
+                'height': a.size - (padding*2),
                 'top'   : padding,
-                'bottom': size - padding,
+                'bottom': a.size - padding,
                 }
 
-    def scale(drawable_info):
-        return [drawable_info.top, drawable_info.bottom]
+    def scale(self, drawable_info, num):
+
+        return lambda mi, ma: single_scale(num, [mi, ma], [drawable_info.bottom, drawable_info.top])
+        #return [drawable_info.top, drawable_info.bottom]
 
 class Property(object):
     def __init__(self, name, key_or_index, parse=lambda d: d, convert=lambda d: int(d)):
@@ -107,6 +118,11 @@ class DataCollection(object):
     def get_property(self, name):
         return next(filter(lambda p: p.name == name, self.properties), None)
 
+    def bounds(self, p):
+        td = [ p.value(d) for d in self.data  ]
+        return [min(td), max(td)]
+
+
 class Graph(object):
     def __init__(self, viewport):
         self.viewport = viewport
@@ -119,6 +135,7 @@ class Graph(object):
         return CreateFactory(self)
 
 
+
 class CreateFactory(object):
     def __init__(self, graph):
         self.graph = graph
@@ -127,9 +144,24 @@ class CreateFactory(object):
         pass
 
     def line(self, data_collection, name, *axis):
+        def get_p(a_name):
+            return data_collection.get_property(find_axis(a_name).name)
+
+        def find_axis(a_name):
+            return next( a for a in axis if str(a) == a_name  )
+
+        d_info = self.graph.viewport.drawable
 
         self.graph.plot_objects[name] = [
                 Line(
-                    start=Struct(**{ str(a): data_collection.get_property(a.name).value(d1) for a in axis}),
-                    end=Struct(**{ str(a): data_collection.get_property(a.name).value(d2) for a in axis })
+                    start=Struct(**{ str(a): a.scale(d_info, data_collection.get_property(a.name).value(d1)) for a in axis}),
+                    end=Struct(**{ str(a): a.scale(d_info, data_collection.get_property(a.name).value(d2)) for a in axis })
                 ) for (d1, d2) in pairwise(data_collection.data)  ]
+
+        #axis.property(data_coollection)
+        #import pdb; pdb.set_trace()
+        self.graph.plot_objects[name] = [
+            Line(
+                start=Struct(**{key: value(*data_collection.bounds(get_p(key))) for key, value in line.start._asdict().items() }),
+                end=Struct(**{key : value(*data_collection.bounds(get_p(key))) for key, value in line.end._asdict().items()}))
+            for line in self.graph.plot_objects[name]]
