@@ -13,7 +13,7 @@ def single_scale(num, start_range, end_range):
     end_max = end_range[1]
 
     end_max - end_min
-    return ((num - start_min)  / (start_max - start_min) *  (end_max - end_min)) + end_min
+    return int(((num - start_min)  / (start_max - start_min) *  (end_max - end_min)) + end_min)
 
 def pairwise(iterable):
     "s -> (s0,s1), (s1,s2), (s2, s3), ..."
@@ -36,8 +36,10 @@ class Viewport(object):
 class AxisBase(object):
     def __repr__(self):
         return self.__class__.__name__
-    def __init__(self, name):
-        self.name = name
+
+    def __init__(self, prop):
+        self.prop = prop
+
     def set(self, minimum=None, maximum=None, step=None, collection=None):
         self.min = minimum
         self.max = maximum
@@ -86,12 +88,12 @@ class Property(object):
         return self.parse(item[self.key_or_index])
 
     def graphable(self, item):
-        return self.convert(parse(item[key_or_index]))
+        return self.convert(self.parse(item[self.key_or_index]))
 
 class MetaInfo(object):
     def __init__(self, data, prop):
-        self.min = min([prop.value(d) for d in data])
-        self.max = max([prop.value(d) for d in data])
+        self.min = min([prop.graphable(d) for d in data])
+        self.max = max([prop.graphable(d) for d in data])
         self.difference = self.max - self.min
         self.type = next(iter(set(type(prop.value(d)) for d in data)), None)
 
@@ -106,20 +108,21 @@ class MetaProxy(object):
 class DataCollection(object):
     def __init__(self, data, *properties):
         self.data = data
-        self.properties = properties
+        self.properties = Struct(**{ p.name: p for p in properties})
 
     @property
     def meta(self):
         return MetaProxy(self)
 
     def to_dict(self):
-        return [ { p.name: p.value(d) for p in self.properties } for d in self.data  ]
+
+        return [ { p.name: p.value(d) for p_name, p in self.properties._asdict().items()} for d in self.data  ]
 
     def get_property(self, name):
-        return next(filter(lambda p: p.name == name, self.properties), None)
+        return next(filter(lambda p: p.name == name, self._properties), None)
 
     def bounds(self, p):
-        td = [ p.value(d) for d in self.data  ]
+        td = [ p.graphable(d) for d in self.data  ]
         return [min(td), max(td)]
 
 
@@ -134,6 +137,25 @@ class Graph(object):
     def create(self):
         return CreateFactory(self)
 
+    def svg(self):
+        axs = Struct(**{ a.cls.__name__: a.size for a in self.viewport.axis})
+        def line(l):
+            return """<line 
+                shape-rendering="geometricPrecision"
+                style="stroke:rgb(0,0,0);stroke-width:0.5; "  
+                x1="{}" 
+                y1="{}" 
+                x2="{}" 
+                y2="{}"/>""".format(l.start.X, l.start.Y, l.end.X, l.end.Y)
+
+    
+        svg = '<svg height="{}" width="{}">'.format(axs.Y, axs.X)
+        for name, pos in self.plot_objects.items():
+            svg += "\n".join([line(po) for po in pos ])
+        svg += '</svg>'
+        return svg
+
+
 
 
 class CreateFactory(object):
@@ -144,9 +166,6 @@ class CreateFactory(object):
         pass
 
     def line(self, data_collection, name, *axis):
-        def get_p(a_name):
-            return data_collection.get_property(find_axis(a_name).name)
-
         def find_axis(a_name):
             return next( a for a in axis if str(a) == a_name  )
 
@@ -154,14 +173,14 @@ class CreateFactory(object):
 
         self.graph.plot_objects[name] = [
                 Line(
-                    start=Struct(**{ str(a): a.scale(d_info, data_collection.get_property(a.name).value(d1)) for a in axis}),
-                    end=Struct(**{ str(a): a.scale(d_info, data_collection.get_property(a.name).value(d2)) for a in axis })
+                    start=Struct(**{ str(a): a.scale(d_info, a.prop.graphable(d1)) for a in axis}),
+                    end=Struct(**{ str(a): a.scale(d_info, a.prop.graphable(d2)) for a in axis })
                 ) for (d1, d2) in pairwise(data_collection.data)  ]
 
         #axis.property(data_coollection)
         #import pdb; pdb.set_trace()
         self.graph.plot_objects[name] = [
             Line(
-                start=Struct(**{key: value(*data_collection.bounds(get_p(key))) for key, value in line.start._asdict().items() }),
-                end=Struct(**{key : value(*data_collection.bounds(get_p(key))) for key, value in line.end._asdict().items()}))
+                start=Struct(**{key: value(*data_collection.bounds(find_axis(key).prop)) for key, value in line.start._asdict().items() }),
+                end=Struct(**{key : value(*data_collection.bounds(find_axis(key).prop)) for key, value in line.end._asdict().items()}))
             for line in self.graph.plot_objects[name]]

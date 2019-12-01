@@ -43,6 +43,13 @@ class DataCollectionTest(unittest.TestCase):
                  {'first_property': 0, 'second_property': 10}])
 
 
+    def test_properties_lookup(self):
+        p = graph.Property('first_property', 1)
+        dc = graph.DataCollection([(0,0), (0,1), (0,10)], p)
+        self.assertEqual(dc.properties.first_property, p)
+
+
+
 class PropertyTest(unittest.TestCase):
     def test_simple(self):
         p = graph.Property('month', 0)
@@ -59,7 +66,7 @@ class GraphTest(unittest.TestCase):
     def test_create_line(self):
         data = [(0,0), (5,1), (10,10)]
         dc = graph.DataCollection(data, graph.Property('month', 1), graph.Property('count', 0) )
-        self.g.create.line(dc,'counts', graph.X('count'), graph.Y('month'))
+        self.g.create.line(dc,'counts', graph.X(dc.properties.count), graph.Y(dc.properties.month))
 
         self.assertEqual(r_struct_to_dict(
             self.g.plot_objects['counts']),
@@ -67,6 +74,22 @@ class GraphTest(unittest.TestCase):
                 Line(start=Struct(X=30,Y=270), end=Struct(X=400,Y=((240*.9)+30))),
                 Line(start=Struct(X=400,Y=((240*.9)+30)), end=Struct(X=770,Y=30)),
             ]))
+
+    def test_create_line_with_datetimes(self):
+        data = [["01-01-2018",0],
+                ["01-02-2018",5],
+                ["01-03-2018",10]]
+
+        month_prop = graph.Property('month', 0, parse=lambda t: datetime.strptime(t, "%d-%m-%Y"), convert=lambda t: t.timestamp())
+        dc = graph.DataCollection(data, month_prop, graph.Property('count', 1) )
+
+        self.g.create.line(dc,'counts', graph.X(dc.properties.month), graph.Y(dc.properties.count))
+
+        self.assertEqual(self.g.plot_objects['counts'][0].start.X, 30)
+        self.assertEqual(self.g.plot_objects['counts'][0].end.X, 418)
+        self.assertEqual(self.g.plot_objects['counts'][1].start.X, 418)
+        self.assertEqual(self.g.plot_objects['counts'][1].end.X, 770)
+
 
     def test_create_x_axis(self):
         pass
