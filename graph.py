@@ -53,6 +53,7 @@ class AxisBase(object):
 class X(AxisBase):
     @classmethod
     def drawable_info(self, a, padding):
+        #size, min, max
         return {
                 'width' : a.size - (padding*2),
                 'left' : padding,
@@ -92,6 +93,7 @@ class Property(object):
 
 class MetaInfo(object):
     def __init__(self, data, prop):
+        #TODO chagne min and max from graphable to value
         self.min = min([prop.graphable(d) for d in data])
         self.max = max([prop.graphable(d) for d in data])
         self.difference = self.max - self.min
@@ -121,23 +123,49 @@ class DataCollection(object):
     def get_property(self, name):
         return next(filter(lambda p: p.name == name, self._properties), None)
 
-    def bounds(self, p):
-        td = [ p.graphable(d) for d in self.data  ]
+    def bounds(self, a):
+        td = [ a.prop.graphable(d) for d in self.data  ]
         return [min(td), max(td)]
 
+
+def update_struct(struct, key, value):
+    struct_attributes = {k: v for k, v in struct._asdict().items() }
+    struct_attributes.update(**{key: value})
+    return Struct(**struct_attributes)
 
 class Graph(object):
     def __init__(self, viewport):
         self.viewport = viewport
-        self.plot_objects = {}
-        self.axis = {}
+        self.data_info = {}
+        self.axis_info = {}
         self.data_collections = {}
 
     @property
     def create(self):
         return CreateFactory(self)
 
+    def _complete_with_bounds(self):
+        for name, di in  self.data_info.items():
+            for axis in di.axis:
+                axis_name = str(axis)
+                axis_collection = self.axis_info[axis.__class__].collection if axis.__class__ in self.axis_info else []
+                axis_graphable = [axis.prop.convert(axis.prop.parse(ac)) for ac in axis_collection]
+                dc_bounds = di.data_collection.bounds(axis)
+                combined_bounds = dc_bounds + axis_graphable
+                total_bounds = [min(combined_bounds), max(combined_bounds)]
+                #import pdb; pdb.set_trace()
+
+                di = update_struct(di,'plot_objects',[
+                    Line(
+                        start= update_struct(line.start, axis_name, getattr(line.start, axis_name)(*total_bounds)),
+                        end= update_struct(line.end, axis_name, getattr(line.end, axis_name)(*total_bounds)))
+                    for line in di.plot_objects ])
+                self.data_info[name]=di
+
+
+
     def svg(self):
+        self._complete_with_bounds()
         axs = Struct(**{ a.cls.__name__: a.size for a in self.viewport.axis})
         def line(l):
             return """<line 
@@ -150,8 +178,12 @@ class Graph(object):
 
     
         svg = '<svg height="{}" width="{}">'.format(axs.Y, axs.X)
-        for name, pos in self.plot_objects.items():
-            svg += "\n".join([line(po) for po in pos ])
+        for name, pos in self.data_info.items():
+            svg += "\n".join([line(po) for po in pos.plot_objects ])
+
+        for a, aos in self.axis_info.items():
+            svg += "\n".join([line(ao) for ao in aos.plot_objects])
+
         svg += '</svg>'
         return svg
 
@@ -162,8 +194,27 @@ class CreateFactory(object):
     def __init__(self, graph):
         self.graph = graph
 
-    def axis(self, axis, name=None):
-        pass
+    def axis(self, axis, collection=None):
+
+        axis_size = next( a for a in self.graph.viewport.axis if a.cls == axis)
+        drawable_info = axis_size.cls.drawable_info(axis_size, self.graph.viewport.padding)
+        #TODO put axis size, min, andmax on the axis class.  use that to make this method more repeatable
+        left, right, top, bottom =  drawable_info.get('left', None), \
+                                    drawable_info.get('right', None),\
+                                    drawable_info.get('top', None),\
+                                    drawable_info.get('bottom', None),
+        if left == None or right == None:
+            viewport_left  = self.graph.viewport.drawable.left
+            left, right= viewport_left, viewport_left
+
+        if top == None or bottom == None:
+            viewport_bottom = self.graph.viewport.drawable.bottom
+            top, bottom = viewport_bottom, viewport_bottom
+
+        #TODO error scale thes
+        self.graph.axis_info[axis] = Struct(
+                collection=collection,
+                plot_objects= [Line(start=Struct(X=left, Y=top), end=Struct(X=right, Y=bottom))])
 
     def line(self, data_collection, name, *axis):
         def find_axis(a_name):
@@ -171,16 +222,17 @@ class CreateFactory(object):
 
         d_info = self.graph.viewport.drawable
 
-        self.graph.plot_objects[name] = [
-                Line(
-                    start=Struct(**{ str(a): a.scale(d_info, a.prop.graphable(d1)) for a in axis}),
-                    end=Struct(**{ str(a): a.scale(d_info, a.prop.graphable(d2)) for a in axis })
-                ) for (d1, d2) in pairwise(data_collection.data)  ]
+        self.graph.data_info[name] = Struct(
+                data_collection = data_collection,
+                axis = axis,
+                plot_objects = [
+                    Line(
+                        start=Struct(**{ str(a): a.scale(d_info, a.prop.graphable(d1)) for a in axis}),
+                        end=Struct(**{ str(a): a.scale(d_info, a.prop.graphable(d2)) for a in axis })
+                    ) for (d1, d2) in pairwise(data_collection.data)  ])
 
-        #axis.property(data_coollection)
-        #import pdb; pdb.set_trace()
-        self.graph.plot_objects[name] = [
-            Line(
-                start=Struct(**{key: value(*data_collection.bounds(find_axis(key).prop)) for key, value in line.start._asdict().items() }),
-                end=Struct(**{key : value(*data_collection.bounds(find_axis(key).prop)) for key, value in line.end._asdict().items()}))
-            for line in self.graph.plot_objects[name]]
+        #self.graph.plot_objects[name] = [
+        #    Line(
+        #        start=Struct(**{key: value(*data_collection.bounds(find_axis(key))) for key, value in line.start._asdict().items() }),
+        #        end=Struct(**{key : value(*data_collection.bounds(find_axis(key))) for key, value in line.end._asdict().items()}))
+        #    for line in self.graph.plot_objects[name]]

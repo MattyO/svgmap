@@ -181,18 +181,26 @@ def date_list(min_date, max_date):
 #graph.plot.img()
 #graph.plot.jpeg()
 
+def inc_date(d, td):
+    return (datetime.fromtimestamp(d).replace(day=1, hour=0, minute=0, second=0) + td).replace(day=1)
 
 @app.route('/graph')
 def graph():
     time_data = time_datas()
-    g = Graph(Viewport(Y.size(300, inverse=True), X.size(800), padding=30))
+
 #g.create.line(DataCollection(data, properties=[Property(name, callable), Property(name, int), 'property_name']), x='property_name', y='property_name')
     dc = DataCollection(time_data,
         Property('month', 0, parse=lambda t: datetime.strptime(t, "%d-%m-%Y"), convert=lambda t: t.timestamp()), 
         Property('count', 1),
     )
+    dl = date_list(
+            inc_date(dc.meta.month.min, -timedelta(days=1)), 
+            inc_date(dc.meta.month.max, timedelta(days=1)))
 
+    g = Graph(Viewport(Y.size(300, inverse=True), X.size(800), padding=30))
     g.create.line(dc, 'counts', X(dc.properties.month), Y(dc.properties.count) )
+    g.create.axis(X, collection=[d.strftime("%d-%m-%Y") for d in dl])
+    g.create.axis(Y, collection=[0, 100,200,300,400,500,600,700])
 
     #mdata = find_meta_data(time_data)
     time_data = to_timestamp(time_data, 0)
