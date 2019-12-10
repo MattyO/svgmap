@@ -6,6 +6,9 @@ Line = namedtuple('Line', ['start', 'end'], verbose=True)
 Point = namedtuple('Point', ['x', 'y'], verbose=True)
 Tick = namedtuple('Tick', ['line', 'text'], verbose=True)
 
+def noop_scale(num):
+    return lambda mi, ma: num
+
 def single_scale(num, start_range, end_range):
     start_min = start_range[0]
     start_max = start_range[1]
@@ -60,6 +63,7 @@ class X(AxisBase):
                 'right': a.size - padding,
                 }
 
+    @classmethod
     def scale(self, drawable_info, num):
         return lambda mi, ma: single_scale(num, [mi, ma], [drawable_info.left, drawable_info.right])
         #return [drawable_info.left, drawable_info.right]
@@ -73,6 +77,7 @@ class Y(AxisBase):
                 'bottom': a.size - padding,
                 }
 
+    @classmethod
     def scale(self, drawable_info, num):
 
         return lambda mi, ma: single_scale(num, [mi, ma], [drawable_info.bottom, drawable_info.top])
@@ -87,6 +92,9 @@ class Property(object):
 
     def value(self, item):
         return self.parse(item[self.key_or_index])
+
+    def cp(self, num):
+        return self.convert(self.parse(num))
 
     def graphable(self, item):
         return self.convert(self.parse(item[self.key_or_index]))
@@ -145,15 +153,22 @@ class Graph(object):
         return CreateFactory(self)
 
     def _complete_with_bounds(self):
+        ##bound[x] = (a,b)
+        ##bounds[y] = (a,b)
+        #for plot objects in all plot objcts
+        #    for axis in all bounds
+        #        update plot_object[axis](bound)
+
+
         for name, di in  self.data_info.items():
+            axis_names = [ str(a) for a in di.axis ]
             for axis in di.axis:
                 axis_name = str(axis)
-                axis_collection = self.axis_info[axis.__class__].collection if axis.__class__ in self.axis_info else []
+                axis_collection = self.axis_info[axis].collection if axis in self.axis_info else []
                 axis_graphable = [axis.prop.convert(axis.prop.parse(ac)) for ac in axis_collection]
                 dc_bounds = di.data_collection.bounds(axis)
                 combined_bounds = dc_bounds + axis_graphable
                 total_bounds = [min(combined_bounds), max(combined_bounds)]
-                #import pdb; pdb.set_trace()
 
                 di = update_struct(di,'plot_objects',[
                     Line(
@@ -162,6 +177,15 @@ class Graph(object):
                     for line in di.plot_objects ])
                 self.data_info[name]=di
 
+                import pdb; pdb.set_trace()
+                temp_axis = update_struct(self.axis_info[axis],'plot_objects',[
+                    Line(
+                        start= update_struct(line.start, axis_name, getattr(line.start, axis_name)(*total_bounds)),
+                        end= update_struct(line.end, axis_name, getattr(line.end, axis_name)(*total_bounds)))
+                    for line in self.axis_info[axis].plot_objects ])
+
+                import pdb; pdb.set_trace()
+                self.axis_info[axis]=temp_axis
 
 
     def svg(self):
@@ -194,9 +218,9 @@ class CreateFactory(object):
     def __init__(self, graph):
         self.graph = graph
 
-    def axis(self, axis, collection=None):
+    def axis(self, axis, collection=None, tick_size = 5):
 
-        axis_size = next( a for a in self.graph.viewport.axis if a.cls == axis)
+        axis_size = next( a for a in self.graph.viewport.axis if a.cls == type(axis))
         drawable_info = axis_size.cls.drawable_info(axis_size, self.graph.viewport.padding)
         #TODO put axis size, min, andmax on the axis class.  use that to make this method more repeatable
         left, right, top, bottom =  drawable_info.get('left', None), \
@@ -211,10 +235,18 @@ class CreateFactory(object):
             viewport_bottom = self.graph.viewport.drawable.bottom
             top, bottom = viewport_bottom, viewport_bottom
 
+
+        ticks = [
+                Line(
+                    start=update_struct(Struct(X=left, Y=top), str(axis), axis.scale(self.graph.viewport.drawable, axis.prop.cp(t))), 
+                    end=update_struct(Struct(X=right+tick_size, Y=bottom+tick_size), str(axis), axis.scale(self.graph.viewport.drawable, axis.prop.cp(t))))
+            for t in collection 
+        ]
+
         #TODO error scale thes
         self.graph.axis_info[axis] = Struct(
                 collection=collection,
-                plot_objects= [Line(start=Struct(X=left, Y=top), end=Struct(X=right, Y=bottom))])
+                plot_objects= [Line(start=Struct(X=noop_scale(left), Y=noop_scale(top)), end=Struct(X=noop_scale(right), Y=noop_scale(bottom)))]+ticks)
 
     def line(self, data_collection, name, *axis):
         def find_axis(a_name):

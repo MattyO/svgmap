@@ -197,10 +197,12 @@ def graph():
             inc_date(dc.meta.month.min, -timedelta(days=1)), 
             inc_date(dc.meta.month.max, timedelta(days=1)))
 
+    x, y = X(dc.properties.month), Y(dc.properties.count)
+
     g = Graph(Viewport(Y.size(300, inverse=True), X.size(800), padding=30))
-    g.create.line(dc, 'counts', X(dc.properties.month), Y(dc.properties.count) )
-    g.create.axis(X, collection=[d.strftime("%d-%m-%Y") for d in dl])
-    g.create.axis(Y, collection=[0, 100,200,300,400,500,600,700])
+    g.create.line(dc, 'counts', x, y )
+    g.create.axis(x, collection=[d.strftime("%d-%m-%Y") for d in dl], tick_size=5)
+    g.create.axis(y, collection=[0, 100, 200, 300, 400, 500, 600, 700])
 
     #mdata = find_meta_data(time_data)
     time_data = to_timestamp(time_data, 0)
