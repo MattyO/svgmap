@@ -172,7 +172,6 @@ class Graph(object):
                 total_bounds = [min(combined_bounds), max(combined_bounds)]
                 bounds_map[axis] = total_bounds
 
-        #import pdb; pdb.set_trace()
         for name, di in  self.data_info.items():
             for axis, bounds in bounds_map.items():
                 axis_name = str(axis)
@@ -185,7 +184,6 @@ class Graph(object):
 
         for axis_info_axis, ai in  self.axis_info.items():
             for axis, bounds in bounds_map.items():
-                import pdb; pdb.set_trace()
                 axis_name = str(axis)
                 ai = update_struct(ai,'plot_objects',[
                     Line(
@@ -227,6 +225,7 @@ class CreateFactory(object):
         self.graph = graph
 
     def axis(self, axis, collection=None, tick_size = 5):
+        import operator
 
         axis_size = next( a for a in self.graph.viewport.axis if a.cls == type(axis))
         drawable_info = axis_size.cls.drawable_info(axis_size, self.graph.viewport.padding)
@@ -235,9 +234,11 @@ class CreateFactory(object):
                                     drawable_info.get('right', None),\
                                     drawable_info.get('top', None),\
                                     drawable_info.get('bottom', None),
+        tick_operator = operator.add
         if left == None or right == None:
             viewport_left  = self.graph.viewport.drawable.left
             left, right= viewport_left, viewport_left
+            tick_operator = operator.sub
 
         if top == None or bottom == None:
             viewport_bottom = self.graph.viewport.drawable.bottom
@@ -247,7 +248,7 @@ class CreateFactory(object):
         ticks = [
                 Line(
                     start=update_struct(Struct(X=noop_scale(left), Y=noop_scale(top)), str(axis), axis.scale(self.graph.viewport.drawable, axis.prop.cp(t))), 
-                    end=update_struct(Struct(X=noop_scale(right+tick_size), Y=noop_scale(bottom+tick_size)), str(axis), axis.scale(self.graph.viewport.drawable, axis.prop.cp(t))))
+                    end=update_struct(Struct(X=noop_scale(tick_operator(right,tick_size)), Y=noop_scale(tick_operator(bottom,tick_size))), str(axis), axis.scale(self.graph.viewport.drawable, axis.prop.cp(t))))
             for t in collection 
         ]
 
