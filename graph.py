@@ -160,6 +160,7 @@ class Graph(object):
         #        update plot_object[axis](bound)
 
 
+        bounds_map = {}
         for name, di in  self.data_info.items():
             axis_names = [ str(a) for a in di.axis ]
             for axis in di.axis:
@@ -169,23 +170,30 @@ class Graph(object):
                 dc_bounds = di.data_collection.bounds(axis)
                 combined_bounds = dc_bounds + axis_graphable
                 total_bounds = [min(combined_bounds), max(combined_bounds)]
+                bounds_map[axis] = total_bounds
 
+        #import pdb; pdb.set_trace()
+        for name, di in  self.data_info.items():
+            for axis, bounds in bounds_map.items():
+                axis_name = str(axis)
                 di = update_struct(di,'plot_objects',[
                     Line(
-                        start= update_struct(line.start, axis_name, getattr(line.start, axis_name)(*total_bounds)),
-                        end= update_struct(line.end, axis_name, getattr(line.end, axis_name)(*total_bounds)))
+                        start= update_struct(line.start, axis_name, getattr(line.start, axis_name)(*bounds)),
+                        end= update_struct(line.end, axis_name, getattr(line.end, axis_name)(*bounds)))
                     for line in di.plot_objects ])
                 self.data_info[name]=di
 
+        for axis_info_axis, ai in  self.axis_info.items():
+            for axis, bounds in bounds_map.items():
                 import pdb; pdb.set_trace()
-                temp_axis = update_struct(self.axis_info[axis],'plot_objects',[
+                axis_name = str(axis)
+                ai = update_struct(ai,'plot_objects',[
                     Line(
-                        start= update_struct(line.start, axis_name, getattr(line.start, axis_name)(*total_bounds)),
-                        end= update_struct(line.end, axis_name, getattr(line.end, axis_name)(*total_bounds)))
-                    for line in self.axis_info[axis].plot_objects ])
+                        start= update_struct(line.start, axis_name, getattr(line.start, axis_name)(*bounds)),
+                        end= update_struct(line.end, axis_name, getattr(line.end, axis_name)(*bounds)))
+                    for line in ai.plot_objects ])
 
-                import pdb; pdb.set_trace()
-                self.axis_info[axis]=temp_axis
+                self.axis_info[axis_info_axis]=ai
 
 
     def svg(self):
@@ -238,8 +246,8 @@ class CreateFactory(object):
 
         ticks = [
                 Line(
-                    start=update_struct(Struct(X=left, Y=top), str(axis), axis.scale(self.graph.viewport.drawable, axis.prop.cp(t))), 
-                    end=update_struct(Struct(X=right+tick_size, Y=bottom+tick_size), str(axis), axis.scale(self.graph.viewport.drawable, axis.prop.cp(t))))
+                    start=update_struct(Struct(X=noop_scale(left), Y=noop_scale(top)), str(axis), axis.scale(self.graph.viewport.drawable, axis.prop.cp(t))), 
+                    end=update_struct(Struct(X=noop_scale(right+tick_size), Y=noop_scale(bottom+tick_size)), str(axis), axis.scale(self.graph.viewport.drawable, axis.prop.cp(t))))
             for t in collection 
         ]
 
