@@ -259,7 +259,18 @@ def graph():
             start=(padding, height-padding),
             end=(width-padding, height-padding))
 
-    return render_template('graph.html', height=height, width=width, xaxis=xaxis, yaxis=yaxis, time_data=time_data, time_lines=time_lines, scale_data_lines=scale_data_lines, scale_data_text=scale_data_text, scale_date_lines=scale_date_lines, scale_date_text=scale_date_text, new_graph=g)
+    return render_template('graph.html', 
+            height=height, 
+            width=width, 
+            xaxis=xaxis, 
+            yaxis=yaxis, 
+            time_data=time_data, 
+            time_lines=time_lines, 
+            scale_data_lines=scale_data_lines, 
+            scale_data_text=scale_data_text, 
+            scale_date_lines=scale_date_lines, 
+            scale_date_text=scale_date_text, 
+            new_graph=g)
 
 
 @app.route('/')

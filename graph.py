@@ -5,6 +5,7 @@ from itertools import tee
 Line = namedtuple('Line', ['start', 'end'], verbose=True)
 Point = namedtuple('Point', ['x', 'y'], verbose=True)
 Tick = namedtuple('Tick', ['line', 'text'], verbose=True)
+Label = namedtuple('Label', ['point', 'text', 'attributes'], verbose=True)
 
 def noop_scale(num):
     return lambda mi, ma: num
@@ -159,6 +160,15 @@ class Graph(object):
         #    for axis in all bounds
         #        update plot_object[axis](bound)
 
+        def update_bounds(thing, axis_name, bounds):
+            if(isinstance(thing, Label)):
+                return Label(
+                        update_struct(thing.point, axis_name, getattr(thing.point, axis_name)(*bounds)), thing.text, thing.attributes)
+            if(isinstance(thing, Line)):
+                return Line(
+                        start= update_struct(thing.start, axis_name, getattr(thing.start, axis_name)(*bounds)),
+                        end= update_struct(thing.end, axis_name, getattr(thing.end, axis_name)(*bounds)))
+
 
         bounds_map = {}
         for name, di in  self.data_info.items():
@@ -185,11 +195,7 @@ class Graph(object):
         for axis_info_axis, ai in  self.axis_info.items():
             for axis, bounds in bounds_map.items():
                 axis_name = str(axis)
-                ai = update_struct(ai,'plot_objects',[
-                    Line(
-                        start= update_struct(line.start, axis_name, getattr(line.start, axis_name)(*bounds)),
-                        end= update_struct(line.end, axis_name, getattr(line.end, axis_name)(*bounds)))
-                    for line in ai.plot_objects ])
+                ai = update_struct(ai,'plot_objects',[ update_bounds(po , axis_name, bounds) for po in ai.plot_objects ])
 
                 self.axis_info[axis_info_axis]=ai
 
@@ -206,13 +212,24 @@ class Graph(object):
                 x2="{}" 
                 y2="{}"/>""".format(l.start.X, l.start.Y, l.end.X, l.end.Y)
 
-    
+        def text(l):
+            return '<text style="font-size: 12px"  x="{}" y="{}">{}</text>'.format(l.point.X, l.point.Y, l.text)
+
+        def draw(thing):
+            if isinstance(thing, Line):
+                return line(thing)
+            if isinstance(thing, Label):
+                return text(thing)
+
+            return ""
+
+
         svg = '<svg height="{}" width="{}">'.format(axs.Y, axs.X)
         for name, pos in self.data_info.items():
             svg += "\n".join([line(po) for po in pos.plot_objects ])
 
         for a, aos in self.axis_info.items():
-            svg += "\n".join([line(ao) for ao in aos.plot_objects])
+            svg += "\n".join([draw(ao) for ao in aos.plot_objects])
 
         svg += '</svg>'
         return svg
@@ -252,10 +269,22 @@ class CreateFactory(object):
             for t in collection 
         ]
 
+        labels = [
+            Label(update_struct(Struct(
+                        X=noop_scale(tick_operator(right,tick_size)), 
+                        Y=noop_scale(tick_operator(bottom,tick_size))), 
+                    str(axis), 
+                    axis.scale(self.graph.viewport.drawable, axis.prop.cp(t))),
+                str(t), {"text-anchor":"end"})
+            for t in collection 
+
+        ]
+        print(labels)
+
         #TODO error scale thes
         self.graph.axis_info[axis] = Struct(
                 collection=collection,
-                plot_objects= [Line(start=Struct(X=noop_scale(left), Y=noop_scale(top)), end=Struct(X=noop_scale(right), Y=noop_scale(bottom)))]+ticks)
+                plot_objects= [Line(start=Struct(X=noop_scale(left), Y=noop_scale(top)), end=Struct(X=noop_scale(right), Y=noop_scale(bottom)))]+ticks + labels)
 
     def line(self, data_collection, name, *axis):
         def find_axis(a_name):
