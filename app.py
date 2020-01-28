@@ -201,7 +201,7 @@ def graph():
 
     g = Graph(Viewport(Y.size(300, inverse=True), X.size(800), padding=30))
     g.create.line(dc, 'counts', x, y )
-    g.create.axis(x, collection=[d.strftime("%d-%m-%Y") for d in dl], tick_size=5)
+    g.create.axis(x, collection=dl, tick_size=5, tick_text=lambda d: d.strftime("%Y") if d.month == 1 else "" )
     g.create.axis(y, collection=[0, 100, 200, 300, 400, 500, 600, 700])
 
     #mdata = find_meta_data(time_data)

@@ -2,10 +2,10 @@ from collections import namedtuple
 from functools import reduce
 from itertools import tee
 
-Line = namedtuple('Line', ['start', 'end'], verbose=True)
-Point = namedtuple('Point', ['x', 'y'], verbose=True)
-Tick = namedtuple('Tick', ['line', 'text'], verbose=True)
-Label = namedtuple('Label', ['point', 'text', 'attributes'], verbose=True)
+Line = namedtuple('Line', ['start', 'end'])
+Point = namedtuple('Point', ['x', 'y'])
+Tick = namedtuple('Tick', ['line', 'text'])
+Label = namedtuple('Label', ['point', 'text', 'attributes'])
 
 def noop_scale(num):
     return lambda mi, ma: num
@@ -95,7 +95,7 @@ class Property(object):
         return self.parse(item[self.key_or_index])
 
     def cp(self, num):
-        return self.convert(self.parse(num))
+        return self.convert(num)
 
     def graphable(self, item):
         return self.convert(self.parse(item[self.key_or_index]))
@@ -176,7 +176,7 @@ class Graph(object):
             for axis in di.axis:
                 axis_name = str(axis)
                 axis_collection = self.axis_info[axis].collection if axis in self.axis_info else []
-                axis_graphable = [axis.prop.convert(axis.prop.parse(ac)) for ac in axis_collection]
+                axis_graphable = [axis.prop.convert(ac) for ac in axis_collection]
                 dc_bounds = di.data_collection.bounds(axis)
                 combined_bounds = dc_bounds + axis_graphable
                 total_bounds = [min(combined_bounds), max(combined_bounds)]
@@ -241,7 +241,7 @@ class CreateFactory(object):
     def __init__(self, graph):
         self.graph = graph
 
-    def axis(self, axis, collection=None, tick_size = 5):
+    def axis(self, axis, collection=None, tick_size = 5, tick_text=lambda t: str(t), **args):
         import operator
 
         axis_size = next( a for a in self.graph.viewport.axis if a.cls == type(axis))
@@ -275,11 +275,10 @@ class CreateFactory(object):
                         Y=noop_scale(tick_operator(bottom,tick_size))), 
                     str(axis), 
                     axis.scale(self.graph.viewport.drawable, axis.prop.cp(t))),
-                str(t), {"text-anchor":"end"})
+                tick_text(t), {"text-anchor":"end"})
             for t in collection 
 
         ]
-        print(labels)
 
         #TODO error scale thes
         self.graph.axis_info[axis] = Struct(
