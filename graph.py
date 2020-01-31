@@ -213,7 +213,10 @@ class Graph(object):
                 y2="{}"/>""".format(l.start.X, l.start.Y, l.end.X, l.end.Y)
 
         def text(l):
-            return '<text style="font-size: 12px"  x="{}" y="{}">{}</text>'.format(l.point.X, l.point.Y, l.text)
+            attributes = " ".join([ "{}=\"{}\"".format(key, value) for key, value in l.attributes.items() ])
+            test = ('<text style="font-size: 12px"  x="{}" y="{}" '+attributes+'>{}</text>').format(l.point.X, l.point.Y, l.text)
+            print(test)
+            return test
 
         def draw(thing):
             if isinstance(thing, Line):
@@ -241,7 +244,7 @@ class CreateFactory(object):
     def __init__(self, graph):
         self.graph = graph
 
-    def axis(self, axis, collection=None, tick_size = 5, tick_text=lambda t: str(t), **args):
+    def axis(self, axis, collection=None, tick_size = 5, tick_additional_offset=0, tick_text_properties= {}, tick_text=lambda t: str(t), **args):
         import operator
 
         axis_size = next( a for a in self.graph.viewport.axis if a.cls == type(axis))
@@ -275,7 +278,7 @@ class CreateFactory(object):
                         Y=noop_scale(tick_operator(bottom,tick_size))), 
                     str(axis), 
                     axis.scale(self.graph.viewport.drawable, axis.prop.cp(t))),
-                tick_text(t), {"text-anchor":"end"})
+                tick_text(t), tick_text_properties)
             for t in collection 
 
         ]
