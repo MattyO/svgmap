@@ -13,10 +13,16 @@ import graph
 
 
 app= Flask(__name__)
-Line = namedtuple('Line', ['start', 'end'], verbose=True)
+#Line = namedtuple('Line', ['start', 'end'], verbose=True)
 
 Point = namedtuple('Point', ['lat', 'lon'], verbose=True)
 Bounds = namedtuple('Bounds', ['topleft', 'bottomright'], verbose=True)
+
+class Line:
+    def __init__(self, start, end, attributes={}):
+        self.start = start
+        self.end = end
+        self.attributes = attributes
 
 
 def is_in_bounds(bounds, point):

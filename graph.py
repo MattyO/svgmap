@@ -2,10 +2,18 @@ from collections import namedtuple
 from functools import reduce
 from itertools import tee
 
-Line = namedtuple('Line', ['start', 'end'])
+#Line = namedtuple('Line', ['start', 'end'])
 Point = namedtuple('Point', ['x', 'y'])
 Tick = namedtuple('Tick', ['line', 'text'])
 Label = namedtuple('Label', ['point', 'text', 'attributes'])
+
+class Line:
+    def __init__(self, start, end, attributes={'shape-rendering':"geometricPrecision"}, styles={"stroke":"rgb(0,0,0)", 'stroke-width':'0.5'}):
+
+        self.start = start
+        self.end = end
+        self.attributes = attributes
+        self.styles = styles
 
 def noop_scale(num):
     return lambda mi, ma: num
@@ -167,7 +175,7 @@ class Graph(object):
             if(isinstance(thing, Line)):
                 return Line(
                         start= update_struct(thing.start, axis_name, getattr(thing.start, axis_name)(*bounds)),
-                        end= update_struct(thing.end, axis_name, getattr(thing.end, axis_name)(*bounds)))
+                        end= update_struct(thing.end, axis_name, getattr(thing.end, axis_name)(*bounds)), attributes=thing.attributes, styles=thing.styles)
 
 
         bounds_map = {}
@@ -203,20 +211,18 @@ class Graph(object):
     def svg(self):
         self._complete_with_bounds()
         axs = Struct(**{ a.cls.__name__: a.size for a in self.viewport.axis})
+
         def line(l):
-            return """<line 
-                shape-rendering="geometricPrecision"
-                style="stroke:rgb(0,0,0);stroke-width:0.5; "  
-                x1="{}" 
-                y1="{}" 
-                x2="{}" 
-                y2="{}"/>""".format(l.start.X, l.start.Y, l.end.X, l.end.Y)
+            attributes = " ".join([ "{}=\"{}\"".format(key, value) for key, value in l.attributes.items() ])
+            styles  = ";".join([ "{}:{}".format(key, value) for key, value in l.styles.items() ])
+            test = ('<line ' + attributes + ' style="' + styles +'" x1="{}" y1="{}" x2="{}" y2="{}"/>') \
+                .format(l.start.X, l.start.Y, l.end.X, l.end.Y)
+            print(test)
+            return test
 
         def text(l):
             attributes = " ".join([ "{}=\"{}\"".format(key, value) for key, value in l.attributes.items() ])
-            test = ('<text style="font-size: 12px"  x="{}" y="{}" '+attributes+'>{}</text>').format(l.point.X, l.point.Y, l.text)
-            print(test)
-            return test
+            return  ('<text style="font-size: 12px"  x="{}" y="{}" '+attributes+'>{}</text>').format(l.point.X, l.point.Y, l.text)
 
         def draw(thing):
             if isinstance(thing, Line):
@@ -244,7 +250,7 @@ class CreateFactory(object):
     def __init__(self, graph):
         self.graph = graph
 
-    def axis(self, axis, collection=None, tick_size = 5, tick_additional_offset=0, tick_text_properties= {}, tick_text=lambda t: str(t), **args):
+    def axis(self, axis, collection=None, tick_size = 5, tick_additional_offset=0, tick_text_properties={}, tick_line_properties={'shape-rendering':"crispEdges"}, tick_line_styles={'stroke':'rgb(0,0,0)'}, tick_text=lambda t: str(t), **args):
         import operator
 
         axis_size = next( a for a in self.graph.viewport.axis if a.cls == type(axis))
@@ -268,7 +274,7 @@ class CreateFactory(object):
         ticks = [
                 Line(
                     start=update_struct(Struct(X=noop_scale(left), Y=noop_scale(top)), str(axis), axis.scale(self.graph.viewport.drawable, axis.prop.cp(t))), 
-                    end=update_struct(Struct(X=noop_scale(tick_operator(right,tick_size)), Y=noop_scale(tick_operator(bottom,tick_size))), str(axis), axis.scale(self.graph.viewport.drawable, axis.prop.cp(t))))
+                    end=update_struct(Struct(X=noop_scale(tick_operator(right,tick_size)), Y=noop_scale(tick_operator(bottom,tick_size))), str(axis), axis.scale(self.graph.viewport.drawable, axis.prop.cp(t))), attributes=tick_line_properties, styles=tick_line_styles)
             for t in collection 
         ]
 
@@ -286,7 +292,7 @@ class CreateFactory(object):
         #TODO error scale thes
         self.graph.axis_info[axis] = Struct(
                 collection=collection,
-                plot_objects= [Line(start=Struct(X=noop_scale(left), Y=noop_scale(top)), end=Struct(X=noop_scale(right), Y=noop_scale(bottom)))]+ticks + labels)
+                plot_objects= [Line(start=Struct(X=noop_scale(left), Y=noop_scale(top)), end=Struct(X=noop_scale(right), Y=noop_scale(bottom)), attributes=tick_line_properties, styles=tick_line_styles)]+ticks + labels)
 
     def line(self, data_collection, name, *axis):
         def find_axis(a_name):
