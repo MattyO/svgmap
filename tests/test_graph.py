@@ -2,8 +2,9 @@ import unittest
 from collections import namedtuple
 from datetime import datetime
 
-from graph import Struct, Line
+from graph import Struct, Line, Graph, Viewport, X, Y, DataCollection, Property
 import graph
+import geometry
 
 
 def r_struct_to_dict(struct):
@@ -13,9 +14,34 @@ def r_struct_to_dict(struct):
 
     return {key: r_struct_to_dict(value) if getattr(value, '_fields', None) != None else value  for key, value in struct._asdict().items()}
 
+class SVG2Test(unittest.TestCase):
+    def test_returns_a_svg(self):
+        g = Graph(Viewport(Y.size(300, inverse=True), X.size(800), padding=30, attributes={'height':Y, 'width':X}))
+        svg_text = g.svg2()
+        self.assertEqual(svg_text, '<svg height="300" width="800"></svg>')
+
+    def test_creates_plot_geometry(self):
+        def geometry_callback(plot_geometries):
+            self.assertEqual(list(plot_geometries.keys()), ['test'])
+            line_geometries = plot_geometries['test']
+            self.assertIsInstance(line_geometries[0], geometry.Line)
+            self.assertEqual(line_geometries[0].start.datum, [0,0])
+            self.assertEqual(line_geometries[0].end.datum, [1,2])
+
+        dc = DataCollection([[0, 0],[1, 2]], Property('first', 0), Property('second', 0))
+        g = Graph(Viewport(Y.size(300, inverse=True), X.size(800), padding=30, attributes={'height':Y, 'width':X}))
+        g.create.line(dc, 'test', X(dc.properties.first), Y(dc.properties.second))
+
+        g.svg2(after_create_geometry=geometry_callback)
+
+
 class ViewportTest(unittest.TestCase):
     def struct_to_dict(self,struct):
         return {**struct._asdict()}
+
+    def test_find_axis(self):
+        vp = graph.Viewport(graph.Y.size(300, inverse=True), graph.X.size(800), padding=30)
+        self.assertEqual(vp.find_axis(Y).size, 300)
 
     def test_drawable_info(self):
         vp = graph.Viewport(graph.Y.size(300, inverse=True), graph.X.size(800), padding=30)
@@ -24,7 +50,16 @@ class ViewportTest(unittest.TestCase):
                 self.struct_to_dict(vp.drawable),
                 self.struct_to_dict(Struct(top=30, left=30, height=240, width=740, right=770, bottom=270)))
 
+
 class DataCollectionTest(unittest.TestCase):
+    def test_geometry_items(self):
+        dc = graph.DataCollection([(0,0), (0,1), (0,10)], graph.Property('first_property', 1) )
+        items = dc.to_dc_items()
+
+        self.assertEqual(items[0].dc, dc)
+        self.assertEqual(items[0].datum, (0,0))
+        self.assertEqual(items[2].datum, (0,10))
+
     def test_get_property_max(self):
         dc = graph.DataCollection([(0,0), (0,1), (0,10)], graph.Property('first_property', 1) )
         self.assertEqual(dc.meta.first_property.max, 10)

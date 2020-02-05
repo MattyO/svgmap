@@ -2,10 +2,21 @@ from collections import namedtuple
 from functools import reduce
 from itertools import tee
 
+import geometry
+
 #Line = namedtuple('Line', ['start', 'end'])
 Point = namedtuple('Point', ['x', 'y'])
 Tick = namedtuple('Tick', ['line', 'text'])
 Label = namedtuple('Label', ['point', 'text', 'attributes'])
+
+class PlotLine(object):
+    def __init__(self, data_collection, name, *axis):
+        self.dc = data_collection
+        self.name = name
+        self.axis = axis
+
+    def create_geometries(self):
+        return {self.name: [geometry.Line(start=d1, end=d2) for (d1, d2) in pairwise(self.dc.to_dc_items())]}
 
 class Line:
     def __init__(self, start, end, attributes={'shape-rendering':"geometricPrecision"}, styles={"stroke":"rgb(0,0,0)", 'stroke-width':'0.5'}):
@@ -37,9 +48,13 @@ def Struct(**kwargs):
     return namedtuple('Struct', ' '.join(kwargs.keys()))(**kwargs)
 
 class Viewport(object):
-    def __init__(self, *axis, padding=0):
+    def __init__(self, *axis, padding=0, attributes={}):
         self.axis=axis
         self.padding=padding
+        self.attributes = attributes
+
+    def find_axis(self, axis_class):
+        return next(filter(lambda a: a.cls == axis_class, self.axis))
 
     @property
     def drawable(self):
@@ -60,7 +75,7 @@ class AxisBase(object):
 
     @classmethod
     def size(cls, num, inverse=False):
-        return Struct(cls=cls, size=num, inverse=inverse)
+        return type("AxisSize", (object,), {'cls':cls, 'size':num, 'inverse':inverse})
 
 class X(AxisBase):
     @classmethod
@@ -124,6 +139,11 @@ class MetaProxy(object):
         prop = next(filter(lambda p: p.name == attr, self.data_collection.properties), None)
         return MetaInfo(self.data_collection.data, prop)
 
+class DCItem(object):
+    def __init__(self, dc, datum):
+        self.dc = dc
+        self.datum = datum
+
 class DataCollection(object):
     def __init__(self, data, *properties):
         self.data = data
@@ -133,9 +153,13 @@ class DataCollection(object):
     def meta(self):
         return MetaProxy(self)
 
+
     def to_dict(self):
 
         return [ { p.name: p.value(d) for p_name, p in self.properties._asdict().items()} for d in self.data  ]
+
+    def to_dc_items(self):
+        return [DCItem(self, d) for d in self.data]
 
     def get_property(self, name):
         return next(filter(lambda p: p.name == name, self._properties), None)
@@ -156,6 +180,8 @@ class Graph(object):
         self.data_info = {}
         self.axis_info = {}
         self.data_collections = {}
+        self.info = {'plot': [], 'axis': []}
+        self.plots = []
 
     @property
     def create(self):
@@ -208,6 +234,43 @@ class Graph(object):
                 self.axis_info[axis_info_axis]=ai
 
 
+
+    def svg2(self, **callbacks):
+        #axis_geomitries = axis.create_geomitries(self.viewport, self.info.axis)
+        #add create gemoetries for axis class.  plotable? axis have default.  jj
+        #geometry
+
+        plot_geometries = []
+        if len(self.plots) > 0:
+            plot_geometries = reduce(lambda d1,d2: {**d1, **d2}, [plot.create_geometries() for plot in self.plots])
+
+        after_create_geometry = callbacks.get('after_create_geometry', None)
+        if callable(after_create_geometry):
+            plot_geometry_callback_results = after_create_geometry(plot_geometries)
+            if plot_geometry_callback_results  is not None:
+                plot_geometries = plot_geometry_callback_results 
+
+
+        #plot_geometries = [axis.apply_coordinate(pg, viewport) for axis in pg.axis for pg in plot_geometries ]
+        #if plot_coordinate_callback_results  is not None:
+        #    plot_geometries = plot_coordinate_callback_results
+
+
+        #plot_geomitries = SvgType.apply_aethetics(pg) for pg in plot_geomitries) 
+        #svg_objects  = "\n".join(SvgType.svg_object(pg) for pg in plot_geomitries) 
+        svg_objects = ""
+
+        svg_attributes = [ '{}="{}"'.format(attribute_name, self.viewport.find_axis(axis_class).size) 
+                for attribute_name, axis_class in self.viewport.attributes.items()]
+        svg_attributes_text = " ".join(svg_attributes)
+
+        svg = '<svg ' + svg_attributes_text + '>'
+        svg += "\n".join(svg_objects)
+        svg += '</svg>'
+
+        return svg
+
+
     def svg(self):
         self._complete_with_bounds()
         axs = Struct(**{ a.cls.__name__: a.size for a in self.viewport.axis})
@@ -215,10 +278,8 @@ class Graph(object):
         def line(l):
             attributes = " ".join([ "{}=\"{}\"".format(key, value) for key, value in l.attributes.items() ])
             styles  = ";".join([ "{}:{}".format(key, value) for key, value in l.styles.items() ])
-            test = ('<line ' + attributes + ' style="' + styles +'" x1="{}" y1="{}" x2="{}" y2="{}"/>') \
+            return  ('<line ' + attributes + ' style="' + styles +'" x1="{}" y1="{}" x2="{}" y2="{}"/>') \
                 .format(l.start.X, l.start.Y, l.end.X, l.end.Y)
-            print(test)
-            return test
 
         def text(l):
             attributes = " ".join([ "{}=\"{}\"".format(key, value) for key, value in l.attributes.items() ])
@@ -242,7 +303,6 @@ class Graph(object):
 
         svg += '</svg>'
         return svg
-
 
 
 
@@ -295,6 +355,7 @@ class CreateFactory(object):
                 plot_objects= [Line(start=Struct(X=noop_scale(left), Y=noop_scale(top)), end=Struct(X=noop_scale(right), Y=noop_scale(bottom)), attributes=tick_line_properties, styles=tick_line_styles)]+ticks + labels)
 
     def line(self, data_collection, name, *axis):
+        self.graph.plots.append(PlotLine(data_collection, name, *axis))
         def find_axis(a_name):
             return next( a for a in axis if str(a) == a_name  )
 
