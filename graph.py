@@ -143,6 +143,7 @@ class DCItem(object):
     def __init__(self, dc, datum):
         self.dc = dc
         self.datum = datum
+        self.coordinates = {}
 
 class DataCollection(object):
     def __init__(self, data, *properties):
@@ -251,7 +252,12 @@ class Graph(object):
                 plot_geometries = plot_geometry_callback_results 
 
 
-        #plot_geometries = [axis.apply_coordinate(pg, viewport) for axis in pg.axis for pg in plot_geometries ]
+        plot_geometries = [axis.apply_coordinate(pg, self.viewport) for axis in pg.axis for pg in plot_geometries ]
+        after_create_coordinates = callbacks.get('after_create_coordinates', None)
+        if callable(after_create_coordinates):
+            plot_geometry_callback_results = after_create_coordinates(plot_geometries)
+            if plot_geometry_callback_results  is not None:
+                plot_geometries = plot_geometry_callback_results 
         #if plot_coordinate_callback_results  is not None:
         #    plot_geometries = plot_coordinate_callback_results
 
