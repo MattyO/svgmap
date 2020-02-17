@@ -38,11 +38,14 @@ class SVG2Test(unittest.TestCase):
         def coordinate_callback(plot_geometries):
             line_geometries = plot_geometries['test']
             self.assertEqual(line_geometries[0].start.coordinates[X], 0)
-            self.assertEqual(line_geometries[0].start.coordinates[Y], 0)
+            self.assertEqual(line_geometries[0].start.coordinates[Y], 300)
+            self.assertEqual(line_geometries[0].end.coordinates[X], 400)
+            self.assertEqual(line_geometries[0].end.coordinates[Y], 150)
+
             self.assertEqual(line_geometries[1].start.coordinates[X], 400)
-            self.assertEqual(line_geometries[1].start.coordinates[Y], 100)
-            self.assertEqual(line_geometries[1].start.coordinates[X], 800)
-            self.assertEqual(line_geometries[1].start.coordinates[Y], 300)
+            self.assertEqual(line_geometries[1].start.coordinates[Y], 150)
+            self.assertEqual(line_geometries[1].end.coordinates[X], 800)
+            self.assertEqual(line_geometries[1].end.coordinates[Y], 0)
 
         dc = DataCollection([[0, 0],[2, 1], [4, 3]], Property('first', 0), Property('second', 0))
         g = Graph(Viewport(Y.size(300, inverse=True), X.size(800), padding=0, attributes={'height':Y, 'width':X}))

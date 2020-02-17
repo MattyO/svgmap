@@ -16,7 +16,7 @@ class PlotLine(object):
         self.axis = axis
 
     def create_geometries(self):
-        return {self.name: [geometry.Line(start=d1, end=d2) for (d1, d2) in pairwise(self.dc.to_dc_items())]}
+        return {self.name: [geometry.Line(start=d1, end=d2) for (d1, d2) in pairwise(self.dc.to_dc_items(self.axis))]}
 
 class Line:
     def __init__(self, start, end, attributes={'shape-rendering':"geometricPrecision"}, styles={"stroke":"rgb(0,0,0)", 'stroke-width':'0.5'}):
@@ -73,6 +73,27 @@ class AxisBase(object):
         self.step = step
         self.collection=collection
 
+    def apply_coordinate(self, plot_geometry, viewport):
+        axis_size = next( a for a in viewport.axis if a.cls == type(self))
+        start_axis = next( a for a in plot_geometry.start.axis if type(a) == type(self))
+        end_axis = next( a for a in plot_geometry.end.axis if type(a) == type(self))
+        viewport_bounds = start_axis.drawable_bounds(viewport.drawable)
+        data_bounds = plot_geometry.start.dc.bounds(start_axis)
+        g = start_axis.prop.graphable(plot_geometry.start.datum)
+
+        scaled_g = single_scale(g, data_bounds, viewport_bounds)
+
+        plot_geometry.start.coordinates[self.__class__] = scaled_g
+
+        viewport_bounds = end_axis.drawable_bounds(viewport.drawable)
+        data_bounds = plot_geometry.end.dc.bounds(end_axis)
+        g = end_axis.prop.graphable(plot_geometry.end.datum)
+
+        scaled_g = single_scale(g, data_bounds, viewport_bounds)
+
+        plot_geometry.end.coordinates[self.__class__] = scaled_g
+        return plot_geometry
+
     @classmethod
     def size(cls, num, inverse=False):
         return type("AxisSize", (object,), {'cls':cls, 'size':num, 'inverse':inverse})
@@ -87,6 +108,9 @@ class X(AxisBase):
                 'right': a.size - padding,
                 }
 
+    def drawable_bounds(self, drawable_obj):
+        return [getattr(drawable_obj, 'left'), getattr(drawable_obj, 'right')]
+
     @classmethod
     def scale(self, drawable_info, num):
         return lambda mi, ma: single_scale(num, [mi, ma], [drawable_info.left, drawable_info.right])
@@ -100,6 +124,9 @@ class Y(AxisBase):
                 'top'   : padding,
                 'bottom': a.size - padding,
                 }
+
+    def drawable_bounds(self, drawable_obj):
+        return [getattr(drawable_obj, 'bottom'), getattr(drawable_obj, 'top')]
 
     @classmethod
     def scale(self, drawable_info, num):
@@ -140,9 +167,10 @@ class MetaProxy(object):
         return MetaInfo(self.data_collection.data, prop)
 
 class DCItem(object):
-    def __init__(self, dc, datum):
+    def __init__(self, dc, datum, axis):
         self.dc = dc
         self.datum = datum
+        self.axis = axis
         self.coordinates = {}
 
 class DataCollection(object):
@@ -159,8 +187,8 @@ class DataCollection(object):
 
         return [ { p.name: p.value(d) for p_name, p in self.properties._asdict().items()} for d in self.data  ]
 
-    def to_dc_items(self):
-        return [DCItem(self, d) for d in self.data]
+    def to_dc_items(self, axis):
+        return [DCItem(self, d, axis) for d in self.data]
 
     def get_property(self, name):
         return next(filter(lambda p: p.name == name, self._properties), None)
@@ -251,8 +279,11 @@ class Graph(object):
             if plot_geometry_callback_results  is not None:
                 plot_geometries = plot_geometry_callback_results 
 
+        for plot in self.plots:
+            for axis in plot.axis:
+                temp_plot_geometries = plot_geometries[plot.name]
+                plot_geometries[plot.name] = [axis.apply_coordinate(pg, self.viewport) for pg in temp_plot_geometries ]
 
-        plot_geometries = [axis.apply_coordinate(pg, self.viewport) for axis in pg.axis for pg in plot_geometries ]
         after_create_coordinates = callbacks.get('after_create_coordinates', None)
         if callable(after_create_coordinates):
             plot_geometry_callback_results = after_create_coordinates(plot_geometries)
