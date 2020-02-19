@@ -2,7 +2,7 @@ import unittest
 from collections import namedtuple
 from datetime import datetime
 
-from graph import Struct, Line, Graph, Viewport, X, Y, DataCollection, Property
+from graph import Struct, Line, Graph, Viewport, X, Y, DataCollection, Property, DCItem, SvgType
 import graph
 import geometry
 
@@ -53,6 +53,34 @@ class SVG2Test(unittest.TestCase):
 
         g.svg2(after_create_coordinates=coordinate_callback)
 
+    def test_create_lines(self):
+        dc = DataCollection([[0, 0],[2, 1], [4, 3]], Property('first', 0), Property('second', 0))
+        g = Graph(Viewport(Y.size(300, inverse=True), X.size(800), padding=0, attributes={'height':Y, 'width':X}))
+        g.create.line(dc, 'test', X(dc.properties.first), Y(dc.properties.second))
+
+        svg_text = g.svg2()
+
+        self.assertTrue('<line x1="0" y1="300" x2="400" y2="150"' in svg_text)
+        self.assertTrue('<line x1="400" y1="150" x2="800" y2="0"' in svg_text)
+
+    def test_svg_type(self):
+        l = Line(DCItem(None, None, None), DCItem(None, None, None))
+        l.start.coordinates[X] = 0
+        l.start.coordinates[Y] = 1
+        l.end.coordinates[X] = 200
+        l.end.coordinates[Y] = 300
+
+        svg_type = SvgType(
+            Line="<line x1={{start.X}}, y1={{start.Y}}, x2={{end.X}}, y2={{end.Y}} /> ",
+        )
+        self.assertEqual(svg_type.tag(l), "<line x1=0, y1=1, x2=200, y2=300 /> ")
+
+    def test_dc_item_can_get_coordinate(self):
+        i = DCItem('test', None, None)
+        i.coordinates[X] = 1
+        self.assertEqual(i.X, 1)
+        self.assertEqual(i.dc, 'test')
+        
 
 
 class ViewportTest(unittest.TestCase):

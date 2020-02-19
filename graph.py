@@ -2,12 +2,23 @@ from collections import namedtuple
 from functools import reduce
 from itertools import tee
 
+from jinja2 import Template
+
 import geometry
 
 #Line = namedtuple('Line', ['start', 'end'])
 Point = namedtuple('Point', ['x', 'y'])
 Tick = namedtuple('Tick', ['line', 'text'])
 Label = namedtuple('Label', ['point', 'text', 'attributes'])
+
+class SvgType(object):
+    def __init__(self, **kwargs):
+            self.templates = kwargs
+
+    def tag(self, item):
+        item_name = type(item).__name__
+        return Template(self.templates[item_name]).render(start=item.start, end=item.end)
+
 
 class PlotLine(object):
     def __init__(self, data_collection, name, *axis):
@@ -173,6 +184,14 @@ class DCItem(object):
         self.axis = axis
         self.coordinates = {}
 
+    def __getattr__(self, attr):
+        value = next(coordinate_value for coordinate_class, coordinate_value in self.coordinates.items() if coordinate_class.__name__ == attr )
+
+        return value
+
+
+
+
 class DataCollection(object):
     def __init__(self, data, *properties):
         self.data = data
@@ -289,9 +308,14 @@ class Graph(object):
             plot_geometry_callback_results = after_create_coordinates(plot_geometries)
             if plot_geometry_callback_results  is not None:
                 plot_geometries = plot_geometry_callback_results 
-        #if plot_coordinate_callback_results  is not None:
-        #    plot_geometries = plot_coordinate_callback_results
 
+        #svg_type = SvgType(
+        #    #attribute=(string:"{{key}}={{value}}", " "),
+        #    style={string:"{{key}}={{value}}", join_string=" "},
+        #    line= "<line x1={{start.X}}, y1={{start.Y}}, x2={{end.X}}, y2={{end.Y}} {{attributes}}/> ",
+        #    point="<point x={{p.X}}, y={{p.Y}} {{attributes}} />",
+        #    text="<text x={{t.X}}, y={{t.Y}}>{{t.text}} {{attributes}}></text>",
+        #)
 
         #plot_geomitries = SvgType.apply_aethetics(pg) for pg in plot_geomitries) 
         #svg_objects  = "\n".join(SvgType.svg_object(pg) for pg in plot_geomitries) 
