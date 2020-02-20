@@ -288,7 +288,7 @@ class Graph(object):
         #add create gemoetries for axis class.  plotable? axis have default.  jj
         #geometry
 
-        plot_geometries = []
+        plot_geometries = {}
         if len(self.plots) > 0:
             plot_geometries = reduce(lambda d1,d2: {**d1, **d2}, [plot.create_geometries() for plot in self.plots])
 
@@ -309,17 +309,23 @@ class Graph(object):
             if plot_geometry_callback_results  is not None:
                 plot_geometries = plot_geometry_callback_results 
 
-        #svg_type = SvgType(
+        svg_type = SvgType(
         #    #attribute=(string:"{{key}}={{value}}", " "),
         #    style={string:"{{key}}={{value}}", join_string=" "},
-        #    line= "<line x1={{start.X}}, y1={{start.Y}}, x2={{end.X}}, y2={{end.Y}} {{attributes}}/> ",
+            Line= '<line x1="{{start.X}}" y1="{{start.Y}}" x2="{{end.X}}" y2="{{end.Y}}" {{attributes}}/> ',
         #    point="<point x={{p.X}}, y={{p.Y}} {{attributes}} />",
         #    text="<text x={{t.X}}, y={{t.Y}}>{{t.text}} {{attributes}}></text>",
-        #)
+        )
 
         #plot_geomitries = SvgType.apply_aethetics(pg) for pg in plot_geomitries) 
         #svg_objects  = "\n".join(SvgType.svg_object(pg) for pg in plot_geomitries) 
-        svg_objects = ""
+
+        svg_objects = []
+
+        for key, plot_geometries in plot_geometries.items():
+            for plot_geometry in plot_geometries:
+                svg_objects.append(svg_type.tag(plot_geometry))
+
 
         svg_attributes = [ '{}="{}"'.format(attribute_name, self.viewport.find_axis(axis_class).size) 
                 for attribute_name, axis_class in self.viewport.attributes.items()]

@@ -102,7 +102,7 @@ class ViewportTest(unittest.TestCase):
 class DataCollectionTest(unittest.TestCase):
     def test_geometry_items(self):
         dc = graph.DataCollection([(0,0), (0,1), (0,10)], graph.Property('first_property', 1) )
-        items = dc.to_dc_items()
+        items = dc.to_dc_items(None)
 
         self.assertEqual(items[0].dc, dc)
         self.assertEqual(items[0].datum, (0,0))
