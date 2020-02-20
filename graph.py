@@ -312,7 +312,7 @@ class Graph(object):
         svg_type = SvgType(
         #    #attribute=(string:"{{key}}={{value}}", " "),
         #    style={string:"{{key}}={{value}}", join_string=" "},
-            Line= '<line x1="{{start.X}}" y1="{{start.Y}}" x2="{{end.X}}" y2="{{end.Y}}" {{attributes}}/> ',
+            Line= '<line x1="{{start.X}}" y1="{{start.Y}}" x2="{{end.X}}" y2="{{end.Y}}" style="stroke:rgb(0,0,0)" {{attributes}}/> ',
         #    point="<point x={{p.X}}, y={{p.Y}} {{attributes}} />",
         #    text="<text x={{t.X}}, y={{t.Y}}>{{t.text}} {{attributes}}></text>",
         )
