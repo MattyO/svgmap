@@ -1,6 +1,8 @@
 from collections import namedtuple
 from functools import reduce
 from itertools import tee
+import uuid
+import inspect
 
 from jinja2 import Template
 
@@ -17,8 +19,10 @@ class SvgType(object):
 
     def tag(self, item):
         item_name = type(item).__name__
-        return Template(self.templates[item_name]).render(start=item.start, end=item.end)
-
+        if isinstance(item, Line):
+            return Template(self.templates[item_name]).render(start=item.start, end=item.end)
+        if isinstance(item, Text):
+            return ''
 
 class PlotLine(object):
     def __init__(self, data_collection, name, *axis):
@@ -29,11 +33,39 @@ class PlotLine(object):
     def create_geometries(self):
         return {self.name: [geometry.Line(start=d1, end=d2) for (d1, d2) in pairwise(self.dc.to_dc_items(self.axis))]}
 
+
+class PlotAxis(object):
+
+    def __init__(self, axis, collection=[], options=None):
+        self.name = "axis_" + axis.__name__
+        self.dc = DataCollection(collection)
+        self.axis = [axis(self.dc.properties.default)]
+        self.options = options
+
+    def create_geometries(self):
+        single_axis = self.axis[0]
+        geometries = []
+        geometries += [Line(
+            start=DCItem(self.dc, [self.dc.meta.default.min], self.axis),
+            end = DCItem(self.dc, [self.dc.meta.default.max], self.axis)
+        )]
+        geometries  += [Line(start=d, end=d) for d in self.dc.to_dc_items(self.axis)]
+        geometries  += [Text(point=d) for d in self.dc.to_dc_items(self.axis)]
+
+
+        return {self.name: geometries}
+
 class Line:
     def __init__(self, start, end, attributes={'shape-rendering':"geometricPrecision"}, styles={"stroke":"rgb(0,0,0)", 'stroke-width':'0.5'}):
-
         self.start = start
         self.end = end
+        self.attributes = attributes
+        self.styles = styles
+
+class Text:
+    def __init__(self, point, text="", attributes={'shape-rendering':"geometricPrecision"}, styles={"stroke":"rgb(0,0,0)", 'stroke-width':'0.5'}):
+        self.point=point 
+        self.text = text
         self.attributes = attributes
         self.styles = styles
 
@@ -85,24 +117,29 @@ class AxisBase(object):
         self.collection=collection
 
     def apply_coordinate(self, plot_geometry, viewport):
-        axis_size = next( a for a in viewport.axis if a.cls == type(self))
-        start_axis = next( a for a in plot_geometry.start.axis if type(a) == type(self))
-        end_axis = next( a for a in plot_geometry.end.axis if type(a) == type(self))
-        viewport_bounds = start_axis.drawable_bounds(viewport.drawable)
-        data_bounds = plot_geometry.start.dc.bounds(start_axis)
-        g = start_axis.prop.graphable(plot_geometry.start.datum)
+        if isinstance(plot_geometry, Line):
+            axis_size = next( a for a in viewport.axis if a.cls == type(self))
+            start_axis = next( a for a in plot_geometry.start.axis if type(a) == type(self))
+            end_axis = next( a for a in plot_geometry.end.axis if type(a) == type(self))
+            viewport_bounds = start_axis.drawable_bounds(viewport.drawable)
+            data_bounds = plot_geometry.start.dc.bounds(start_axis)
+            g = start_axis.prop.graphable(plot_geometry.start.datum)
 
-        scaled_g = single_scale(g, data_bounds, viewport_bounds)
+            scaled_g = single_scale(g, data_bounds, viewport_bounds)
 
-        plot_geometry.start.coordinates[self.__class__] = scaled_g
+            plot_geometry.start.coordinates[self.__class__] = scaled_g
 
-        viewport_bounds = end_axis.drawable_bounds(viewport.drawable)
-        data_bounds = plot_geometry.end.dc.bounds(end_axis)
-        g = end_axis.prop.graphable(plot_geometry.end.datum)
+            viewport_bounds = end_axis.drawable_bounds(viewport.drawable)
+            data_bounds = plot_geometry.end.dc.bounds(end_axis)
+            g = end_axis.prop.graphable(plot_geometry.end.datum)
 
-        scaled_g = single_scale(g, data_bounds, viewport_bounds)
+            scaled_g = single_scale(g, data_bounds, viewport_bounds)
 
-        plot_geometry.end.coordinates[self.__class__] = scaled_g
+            plot_geometry.end.coordinates[self.__class__] = scaled_g
+
+        if isinstance(plot_geometry, Text):
+            plot_geometry.point.coordinates[self.__class__] = 0
+
         return plot_geometry
 
     @classmethod
@@ -146,7 +183,7 @@ class Y(AxisBase):
         #return [drawable_info.top, drawable_info.bottom]
 
 class Property(object):
-    def __init__(self, name, key_or_index, parse=lambda d: d, convert=lambda d: int(d)):
+    def __init__(self, name=None, key_or_index=0, parse=lambda d: d, convert=lambda d: int(d)):
         self.name = name
         self.key_or_index = key_or_index
         self.parse = parse
@@ -185,7 +222,7 @@ class DCItem(object):
         self.coordinates = {}
 
     def __getattr__(self, attr):
-        value = next(coordinate_value for coordinate_class, coordinate_value in self.coordinates.items() if coordinate_class.__name__ == attr )
+        value = next((coordinate_value for coordinate_class, coordinate_value in self.coordinates.items() if coordinate_class.__name__ == attr), None )
 
         return value
 
@@ -194,13 +231,16 @@ class DCItem(object):
 
 class DataCollection(object):
     def __init__(self, data, *properties):
+        if len(properties) == 0:
+            data = [ [i] for i in data ]
+            properties = [Property('default', 0)]
+
         self.data = data
         self.properties = Struct(**{ p.name: p for p in properties})
 
     @property
     def meta(self):
         return MetaProxy(self)
-
 
     def to_dict(self):
 
@@ -210,7 +250,7 @@ class DataCollection(object):
         return [DCItem(self, d, axis) for d in self.data]
 
     def get_property(self, name):
-        return next(filter(lambda p: p.name == name, self._properties), None)
+        return next(filter(lambda p: p.name == name, self.properties), None)
 
     def bounds(self, a):
         td = [ a.prop.graphable(d) for d in self.data  ]
@@ -312,9 +352,9 @@ class Graph(object):
         svg_type = SvgType(
         #    #attribute=(string:"{{key}}={{value}}", " "),
         #    style={string:"{{key}}={{value}}", join_string=" "},
-            Line= '<line x1="{{start.X}}" y1="{{start.Y}}" x2="{{end.X}}" y2="{{end.Y}}" style="stroke:rgb(0,0,0)" {{attributes}}/> ',
+            Line= '<line x1="{{start.X}}" y1="{{start.Y}}" x2="{{end.X}}" y2="{{end.Y}}"  shape-rendering="geometricPrecision" style="stroke:rgb(0,0,0);stroke-width:0.5;" /> ',
         #    point="<point x={{p.X}}, y={{p.Y}} {{attributes}} />",
-        #    text="<text x={{t.X}}, y={{t.Y}}>{{t.text}} {{attributes}}></text>",
+            Text="<text x={{point.X}}, y={{point.Y}}>{{text}} {{attributes}}></text>",
         )
 
         #plot_geomitries = SvgType.apply_aethetics(pg) for pg in plot_geomitries) 
@@ -379,6 +419,15 @@ class CreateFactory(object):
 
     def axis(self, axis, collection=None, tick_size = 5, tick_additional_offset=0, tick_text_properties={}, tick_line_properties={'shape-rendering':"crispEdges"}, tick_line_styles={'stroke':'rgb(0,0,0)'}, tick_text=lambda t: str(t), **args):
         import operator
+        #def __init__(self, data_collection, name, *axis):
+        plot_options = {
+            'tick': { 'size': 5, 'additional_offset' : 5, 
+                'text': {'str': lambda t: str(t), 'properties': {}}, 
+                'line': {'properties':{'shape-rendering':"crispEdges"}, 'styles':{'stroke':'rgb(0,0,0)'}}
+            },
+            'position': { args.get('position')}
+        }
+        self.graph.plots.append(PlotAxis(axis.__class__, collection, plot_options))
 
         axis_size = next( a for a in self.graph.viewport.axis if a.cls == type(axis))
         drawable_info = axis_size.cls.drawable_info(axis_size, self.graph.viewport.padding)

@@ -24,6 +24,7 @@ class SVG2Test(unittest.TestCase):
         def geometry_callback(plot_geometries):
             self.assertEqual(list(plot_geometries.keys()), ['test'])
             line_geometries = plot_geometries['test']
+            #TODO: update line geometries to always use the gemomety class and not switch
             self.assertIsInstance(line_geometries[0], geometry.Line)
             self.assertEqual(line_geometries[0].start.datum, [0,0])
             self.assertEqual(line_geometries[0].end.datum, [1,2])
@@ -52,6 +53,56 @@ class SVG2Test(unittest.TestCase):
         g.create.line(dc, 'test', X(dc.properties.first), Y(dc.properties.second))
 
         g.svg2(after_create_coordinates=coordinate_callback)
+
+    def test_create_coordinates_with_padding(self):
+        def coordinate_callback(plot_geometries):
+            line_geometries = plot_geometries['test']
+            self.assertEqual(line_geometries[0].start.coordinates[X], 50)
+            self.assertEqual(line_geometries[0].start.coordinates[Y], 250)
+            self.assertEqual(line_geometries[0].end.coordinates[X], 400)
+            self.assertEqual(line_geometries[0].end.coordinates[Y], 150)
+
+            self.assertEqual(line_geometries[1].start.coordinates[X], 400)
+            self.assertEqual(line_geometries[1].start.coordinates[Y], 150)
+            self.assertEqual(line_geometries[1].end.coordinates[X], 750)
+            self.assertEqual(line_geometries[1].end.coordinates[Y], 50)
+
+        dc = DataCollection([[0, 0],[2, 1], [4, 3]], Property('first', 0), Property('second', 1))
+        g = Graph(Viewport(Y.size(300, inverse=True), X.size(800), padding=50, attributes={'height':Y, 'width':X}))
+        g.create.line(dc, 'test', X(dc.properties.first), Y(dc.properties.second))
+
+        g.svg2(after_create_coordinates=coordinate_callback)
+
+    def test_create_axis(self):
+        def coordinate_callback(plot_geometries):
+            line_geometries = plot_geometries['axis_Y']
+
+            self.assertIsInstance(line_geometries[0], graph.Line)
+
+            self.assertEqual(line_geometries[0].start.datum, [0])
+            self.assertEqual(line_geometries[0].end.datum, [6])
+            self.assertEqual(line_geometries[1].start.datum, [0])
+            self.assertEqual(line_geometries[1].end.datum, [0])
+            self.assertEqual(line_geometries[6].start.datum, [5])
+            self.assertEqual(line_geometries[6].end.datum, [5])
+
+            self.assertIsInstance(line_geometries[8], graph.Text)
+            self.assertEqual(line_geometries[8].point.datum, [0])
+            self.assertEqual(line_geometries[8].text, '')
+
+            self.assertIsInstance(line_geometries[14], graph.Text)
+            self.assertEqual(line_geometries[14].point.datum, [6])
+            self.assertEqual(line_geometries[14].text, '')
+
+
+        dc = DataCollection([[0, 0],[2, 1], [4, 3]], Property('first', 0), Property('second', 0))
+        g = Graph(Viewport(Y.size(300, inverse=True), X.size(800), padding=50, attributes={'height':Y, 'width':X}))
+        #g.create.line(dc, 'test', X(dc.properties.first), Y(dc.properties.second))
+
+        g.create.axis(Y(dc.properties.second), collection=[0,1,2,3,4,5,6], options={'position': {X: 'bottom'}})
+
+        g.svg2(after_create_coordinates=coordinate_callback)
+
 
     def test_create_lines(self):
         dc = DataCollection([[0, 0],[2, 1], [4, 3]], Property('first', 0), Property('second', 0))
@@ -100,6 +151,15 @@ class ViewportTest(unittest.TestCase):
 
 
 class DataCollectionTest(unittest.TestCase):
+    
+    def test_data_collection_with_one_item_list_and_no_properties(self):
+        dc = graph.DataCollection([0,1,2,3,4])
+        p = dc.get_property('default')
+
+        self.assertEqual(dc.properties.default, p)
+        self.assertEqual(dc.meta.default.min, 0)
+        self.assertEqual(dc.meta.default.max, 4)
+
     def test_geometry_items(self):
         dc = graph.DataCollection([(0,0), (0,1), (0,10)], graph.Property('first_property', 1) )
         items = dc.to_dc_items(None)
