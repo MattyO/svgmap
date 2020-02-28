@@ -111,30 +111,26 @@ class SVG2Test(unittest.TestCase):
 
             self.assertIsInstance(line_geometries[0], graph.Line)
 
-            print('in test')
-            print(line_geometries[0].start.datum)
-            print(line_geometries[0].start.coordinates)
             self.assertEqual(line_geometries[0].start.coordinates[Y], 250)
             self.assertEqual(line_geometries[0].start.coordinates[X], 50)
             self.assertEqual(line_geometries[0].end.coordinates[Y], 50)
             self.assertEqual(line_geometries[0].end.coordinates[X], 50)
 
-            print(line_geometries[1].start.coordinates)
             self.assertEqual(line_geometries[1].start.coordinates[Y], 250)
             self.assertEqual(line_geometries[1].start.coordinates[X], 50)
             self.assertEqual(line_geometries[1].end.coordinates[Y], 250)
             self.assertEqual(line_geometries[1].end.coordinates[X], 55)
 
-            #self.assertEqual(line_geometries[2].point.coordinates[Y], 250)
-            #self.assertEqual(line_geometries[2].point.coordinates[X], 55)
+            self.assertEqual(line_geometries[2].point.coordinates[Y], 250)
+            self.assertEqual(line_geometries[2].point.coordinates[X], 55)
 
             self.assertEqual(line_geometries[13].start.coordinates[Y], 50)
             self.assertEqual(line_geometries[13].start.coordinates[X], 50)
             self.assertEqual(line_geometries[13].end.coordinates[Y], 50)
             self.assertEqual(line_geometries[13].end.coordinates[X], 55)
 
-            #self.assertEqual(line_geometries[14].point.coordinates[Y], 50)
-            #self.assertEqual(line_geometries[14].point.coordinates[X], 55)
+            self.assertEqual(line_geometries[14].point.coordinates[Y], 50)
+            self.assertEqual(line_geometries[14].point.coordinates[X], 55)
 
 
         dc = DataCollection([[0, 0],[2, 1], [4, 3]], Property('first', 0), Property('second', 0))

@@ -46,7 +46,6 @@ class PlotAxis(object):
         self.graph = graph
 
     def create_geometries(self):
-        #print(self.graph.viewport.drawable)
         tick_size = self.options['tick']['size']
         text_offset = self.options['tick']['additional_offset']
         extra_axis_class, viewport_prop_string = list(self.options['position'].items())[0]
@@ -143,28 +142,16 @@ class AxisBase(object):
         self.collection=collection
 
     def apply_coordinate(self, plot_geometry, viewport):
-        #print('apply_coordinates')
-        #print(self.__class__)
-        #if isinstance(plot_geometry, Line):
-        #    print(plot_geometry.start.datum)
         try:
+            axis_size = next( a for a in viewport.axis if a.cls == type(self))
             if isinstance(plot_geometry, Line):
-                axis_size = next( a for a in viewport.axis if a.cls == type(self))
                 start_axis = next( a for a in plot_geometry.start.axis if type(a) == type(self))
                 end_axis = next( a for a in plot_geometry.end.axis if type(a) == type(self))
                 viewport_bounds = start_axis.drawable_bounds(viewport.drawable)
                 data_bounds = plot_geometry.start.dc.bounds(start_axis)
                 g = start_axis.prop.graphable(plot_geometry.start.datum)
-                #print(plot_geometry.start.coordinates)
-                #print(self.__class__)
-                #print(plot_geometry.start.datum)
-                #print(g)
-                #print(data_bounds)
-                #print(viewport_bounds)
 
                 scaled_g = single_scale(g, data_bounds, viewport_bounds)
-                #print(self.__class__)
-                #print(scaled_g)
 
                 plot_geometry.start.coordinates[self.__class__] = scaled_g
 
@@ -177,8 +164,15 @@ class AxisBase(object):
                 plot_geometry.end.coordinates[self.__class__] = scaled_g
 
             if isinstance(plot_geometry, Text):
-                #print(plot_geometry.point.coordinates)
+                point_axis = next( a for a in plot_geometry.point.axis if type(a) == type(self))
                 plot_geometry.point.coordinates[self.__class__] = 0
+                viewport_bounds = point_axis.drawable_bounds(viewport.drawable)
+                data_bounds = plot_geometry.point.dc.bounds(point_axis)
+                g = point_axis.prop.graphable(plot_geometry.point.datum)
+
+                scaled_g = single_scale(g, data_bounds, viewport_bounds)
+
+                plot_geometry.point.coordinates[self.__class__] = scaled_g
 
             return plot_geometry
         except:
@@ -401,12 +395,6 @@ class Graph(object):
         for plot in self.plots:
             for axis in plot.axis:
                 temp_plot_geometries = plot_geometries[plot.name]
-                #for pg in temp_plot_geometries:
-                #    if isinstance(pg, Line):
-                #        print(pg.start.datum)
-                #        print(pg.end.datum)
-                #    if isinstance(pg, Text):
-                #        print(pg.point.datum)
                 plot_geometries[plot.name] = [axis.apply_coordinate(pg, self.viewport) for pg in temp_plot_geometries ]
 
         after_create_coordinates = callbacks.get('after_create_coordinates', None)
