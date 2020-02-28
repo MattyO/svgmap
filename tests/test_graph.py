@@ -73,25 +73,27 @@ class SVG2Test(unittest.TestCase):
 
         g.svg2(after_create_coordinates=coordinate_callback)
 
-    def test_create_axis(self):
+    def test_create_axis_geometries(self):
         def coordinate_callback(plot_geometries):
             line_geometries = plot_geometries['axis_Y']
 
             self.assertIsInstance(line_geometries[0], graph.Line)
 
-            self.assertEqual(line_geometries[0].start.datum, [0])
-            self.assertEqual(line_geometries[0].end.datum, [6])
-            self.assertEqual(line_geometries[1].start.datum, [0])
-            self.assertEqual(line_geometries[1].end.datum, [0])
-            self.assertEqual(line_geometries[6].start.datum, [5])
-            self.assertEqual(line_geometries[6].end.datum, [5])
+            self.assertEqual(line_geometries[0].start.datum, [0, "{{left}}" ])
+            self.assertEqual(line_geometries[0].end.datum,   [6, "{{left}}" ])
 
-            self.assertIsInstance(line_geometries[8], graph.Text)
-            self.assertEqual(line_geometries[8].point.datum, [0])
-            self.assertEqual(line_geometries[8].text, '')
+            self.assertEqual(line_geometries[1].start.datum, [0, "{{left}}" ])
+            self.assertEqual(line_geometries[1].end.datum,   [0, "{{left}} + 5" ])
+
+            self.assertIsInstance(line_geometries[2], graph.Text)
+            self.assertEqual(line_geometries[2].point.datum, [0, "{{left}} + 5" ])
+            self.assertEqual(line_geometries[2].text, '')
+
+            self.assertEqual(line_geometries[13].start.datum, [6, "{{left}}" ])
+            self.assertEqual(line_geometries[13].end.datum,   [6, "{{left}} + 5" ])
 
             self.assertIsInstance(line_geometries[14], graph.Text)
-            self.assertEqual(line_geometries[14].point.datum, [6])
+            self.assertEqual(line_geometries[14].point.datum, [6, "{{left}} + 5" ])
             self.assertEqual(line_geometries[14].text, '')
 
 
@@ -99,7 +101,47 @@ class SVG2Test(unittest.TestCase):
         g = Graph(Viewport(Y.size(300, inverse=True), X.size(800), padding=50, attributes={'height':Y, 'width':X}))
         #g.create.line(dc, 'test', X(dc.properties.first), Y(dc.properties.second))
 
-        g.create.axis(Y(dc.properties.second), collection=[0,1,2,3,4,5,6], options={'position': {X: 'bottom'}})
+        g.create.axis(Y(dc.properties.second), collection=[0,1,2,3,4,5,6], options={'position': {X: 'left'}})
+
+        g.svg2(after_create_geometry=coordinate_callback)
+
+    def test_create_axis_coordinates(self):
+        def coordinate_callback(plot_geometries):
+            line_geometries = plot_geometries['axis_Y']
+
+            self.assertIsInstance(line_geometries[0], graph.Line)
+
+            print('in test')
+            print(line_geometries[0].start.datum)
+            print(line_geometries[0].start.coordinates)
+            self.assertEqual(line_geometries[0].start.coordinates[Y], 250)
+            self.assertEqual(line_geometries[0].start.coordinates[X], 50)
+            self.assertEqual(line_geometries[0].end.coordinates[Y], 50)
+            self.assertEqual(line_geometries[0].end.coordinates[X], 50)
+
+            print(line_geometries[1].start.coordinates)
+            self.assertEqual(line_geometries[1].start.coordinates[Y], 250)
+            self.assertEqual(line_geometries[1].start.coordinates[X], 50)
+            self.assertEqual(line_geometries[1].end.coordinates[Y], 250)
+            self.assertEqual(line_geometries[1].end.coordinates[X], 55)
+
+            #self.assertEqual(line_geometries[2].point.coordinates[Y], 250)
+            #self.assertEqual(line_geometries[2].point.coordinates[X], 55)
+
+            self.assertEqual(line_geometries[13].start.coordinates[Y], 50)
+            self.assertEqual(line_geometries[13].start.coordinates[X], 50)
+            self.assertEqual(line_geometries[13].end.coordinates[Y], 50)
+            self.assertEqual(line_geometries[13].end.coordinates[X], 55)
+
+            #self.assertEqual(line_geometries[14].point.coordinates[Y], 50)
+            #self.assertEqual(line_geometries[14].point.coordinates[X], 55)
+
+
+        dc = DataCollection([[0, 0],[2, 1], [4, 3]], Property('first', 0), Property('second', 0))
+        g = Graph(Viewport(Y.size(300, inverse=True), X.size(800), padding=50, attributes={'height':Y, 'width':X}))
+        #g.create.line(dc, 'test', X(dc.properties.first), Y(dc.properties.second))
+
+        g.create.axis(Y(dc.properties.second), collection=[0,1,2,3,4,5,6], options={'position': {X: 'left'}})
 
         g.svg2(after_create_coordinates=coordinate_callback)
 

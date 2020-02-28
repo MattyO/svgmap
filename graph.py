@@ -3,6 +3,7 @@ from functools import reduce
 from itertools import tee
 import uuid
 import inspect
+import copy
 
 from jinja2 import Template
 
@@ -25,10 +26,11 @@ class SvgType(object):
             return ''
 
 class PlotLine(object):
-    def __init__(self, data_collection, name, *axis):
+    def __init__(self, data_collection, name, *axis, graph=None):
         self.dc = data_collection
         self.name = name
         self.axis = axis
+        self.graph = graph
 
     def create_geometries(self):
         return {self.name: [geometry.Line(start=d1, end=d2) for (d1, d2) in pairwise(self.dc.to_dc_items(self.axis))]}
@@ -36,21 +38,45 @@ class PlotLine(object):
 
 class PlotAxis(object):
 
-    def __init__(self, axis, collection=[], options=None):
+    def __init__(self, axis, collection=[], options=None, graph=None):
         self.name = "axis_" + axis.__name__
         self.dc = DataCollection(collection)
         self.axis = [axis(self.dc.properties.default)]
         self.options = options
+        self.graph = graph
 
     def create_geometries(self):
+        #print(self.graph.viewport.drawable)
+        tick_size = self.options['tick']['size']
+        text_offset = self.options['tick']['additional_offset']
+        extra_axis_class, viewport_prop_string = list(self.options['position'].items())[0]
+        extra_axis_instance = extra_axis_class(Property(extra_axis_class.__name__, 1, parse=lambda t: eval(t.format(**self.graph.viewport.drawable._asdict()))))
+        extra_bounds = extra_axis_instance.drawable_bounds(self.graph.viewport.drawable)
+        self.dc.set_bounds(extra_axis_class, *extra_bounds)
+        self.axis += [extra_axis_instance]
         single_axis = self.axis[0]
         geometries = []
         geometries += [Line(
-            start=DCItem(self.dc, [self.dc.meta.default.min], self.axis),
-            end = DCItem(self.dc, [self.dc.meta.default.max], self.axis)
+            start=DCItem(self.dc, [self.dc.meta.default.min, '{' + viewport_prop_string + '}'], self.axis + [extra_axis_instance]),
+            end = DCItem(self.dc, [self.dc.meta.default.max, '{' + viewport_prop_string + '}' ], self.axis + [extra_axis_instance])
         )]
-        geometries  += [Line(start=d, end=d) for d in self.dc.to_dc_items(self.axis)]
-        geometries  += [Text(point=d) for d in self.dc.to_dc_items(self.axis)]
+
+        for d in self.dc.to_dc_items(self.axis):
+            start_tick_dc = d.copy()
+            end_tick_dc = d.copy()
+            text_dc = d.copy()
+
+            start_tick_dc.datum += ['{' + viewport_prop_string + '}']
+            start_tick_dc.axis += [ extra_axis_instance ]
+
+            end_tick_dc.datum += ['{' + viewport_prop_string + '}' + " + " + str(tick_size)]
+            end_tick_dc.axis += [ extra_axis_instance ]
+
+            text_dc.datum += ['{' + viewport_prop_string + '}' + " + " + str(tick_size)]
+            text_dc.axis += [ extra_axis_instance ]
+            
+            geometries  += [Line(start=start_tick_dc, end=end_tick_dc)]
+            geometries  += [Text(point=text_dc)]
 
 
         return {self.name: geometries}
@@ -117,30 +143,47 @@ class AxisBase(object):
         self.collection=collection
 
     def apply_coordinate(self, plot_geometry, viewport):
-        if isinstance(plot_geometry, Line):
-            axis_size = next( a for a in viewport.axis if a.cls == type(self))
-            start_axis = next( a for a in plot_geometry.start.axis if type(a) == type(self))
-            end_axis = next( a for a in plot_geometry.end.axis if type(a) == type(self))
-            viewport_bounds = start_axis.drawable_bounds(viewport.drawable)
-            data_bounds = plot_geometry.start.dc.bounds(start_axis)
-            g = start_axis.prop.graphable(plot_geometry.start.datum)
+        #print('apply_coordinates')
+        #print(self.__class__)
+        #if isinstance(plot_geometry, Line):
+        #    print(plot_geometry.start.datum)
+        try:
+            if isinstance(plot_geometry, Line):
+                axis_size = next( a for a in viewport.axis if a.cls == type(self))
+                start_axis = next( a for a in plot_geometry.start.axis if type(a) == type(self))
+                end_axis = next( a for a in plot_geometry.end.axis if type(a) == type(self))
+                viewport_bounds = start_axis.drawable_bounds(viewport.drawable)
+                data_bounds = plot_geometry.start.dc.bounds(start_axis)
+                g = start_axis.prop.graphable(plot_geometry.start.datum)
+                #print(plot_geometry.start.coordinates)
+                #print(self.__class__)
+                #print(plot_geometry.start.datum)
+                #print(g)
+                #print(data_bounds)
+                #print(viewport_bounds)
 
-            scaled_g = single_scale(g, data_bounds, viewport_bounds)
+                scaled_g = single_scale(g, data_bounds, viewport_bounds)
+                #print(self.__class__)
+                #print(scaled_g)
 
-            plot_geometry.start.coordinates[self.__class__] = scaled_g
+                plot_geometry.start.coordinates[self.__class__] = scaled_g
 
-            viewport_bounds = end_axis.drawable_bounds(viewport.drawable)
-            data_bounds = plot_geometry.end.dc.bounds(end_axis)
-            g = end_axis.prop.graphable(plot_geometry.end.datum)
+                viewport_bounds = end_axis.drawable_bounds(viewport.drawable)
+                data_bounds = plot_geometry.end.dc.bounds(end_axis)
+                g = end_axis.prop.graphable(plot_geometry.end.datum)
 
-            scaled_g = single_scale(g, data_bounds, viewport_bounds)
+                scaled_g = single_scale(g, data_bounds, viewport_bounds)
 
-            plot_geometry.end.coordinates[self.__class__] = scaled_g
+                plot_geometry.end.coordinates[self.__class__] = scaled_g
 
-        if isinstance(plot_geometry, Text):
-            plot_geometry.point.coordinates[self.__class__] = 0
+            if isinstance(plot_geometry, Text):
+                #print(plot_geometry.point.coordinates)
+                plot_geometry.point.coordinates[self.__class__] = 0
 
-        return plot_geometry
+            return plot_geometry
+        except:
+            print(type(self))
+            raise
 
     @classmethod
     def size(cls, num, inverse=False):
@@ -221,6 +264,17 @@ class DCItem(object):
         self.axis = axis
         self.coordinates = {}
 
+    def copy(self):
+        temp_copy = DCItem(
+                copy.deepcopy(self.dc),
+                copy.deepcopy(self.datum),
+                copy.deepcopy(self.axis),
+                )
+        temp_copy.coordinates = copy.deepcopy(self.coordinates)
+        return temp_copy
+
+
+
     def __getattr__(self, attr):
         value = next((coordinate_value for coordinate_class, coordinate_value in self.coordinates.items() if coordinate_class.__name__ == attr), None )
 
@@ -252,7 +306,13 @@ class DataCollection(object):
     def get_property(self, name):
         return next(filter(lambda p: p.name == name, self.properties), None)
 
+    def set_bounds(self, a,  mi, ma):
+        self._bounds = {a: [mi, ma]}
+
     def bounds(self, a):
+        if type(a) in self._bounds:
+            return self._bounds[type(a)]
+
         td = [ a.prop.graphable(d) for d in self.data  ]
         return [min(td), max(td)]
 
@@ -341,6 +401,12 @@ class Graph(object):
         for plot in self.plots:
             for axis in plot.axis:
                 temp_plot_geometries = plot_geometries[plot.name]
+                #for pg in temp_plot_geometries:
+                #    if isinstance(pg, Line):
+                #        print(pg.start.datum)
+                #        print(pg.end.datum)
+                #    if isinstance(pg, Text):
+                #        print(pg.point.datum)
                 plot_geometries[plot.name] = [axis.apply_coordinate(pg, self.viewport) for pg in temp_plot_geometries ]
 
         after_create_coordinates = callbacks.get('after_create_coordinates', None)
@@ -425,9 +491,9 @@ class CreateFactory(object):
                 'text': {'str': lambda t: str(t), 'properties': {}}, 
                 'line': {'properties':{'shape-rendering':"crispEdges"}, 'styles':{'stroke':'rgb(0,0,0)'}}
             },
-            'position': { args.get('position')}
+            'position': args['options']['position']
         }
-        self.graph.plots.append(PlotAxis(axis.__class__, collection, plot_options))
+        self.graph.plots.append(PlotAxis(axis.__class__, collection, plot_options, graph=self.graph))
 
         axis_size = next( a for a in self.graph.viewport.axis if a.cls == type(axis))
         drawable_info = axis_size.cls.drawable_info(axis_size, self.graph.viewport.padding)
@@ -471,7 +537,7 @@ class CreateFactory(object):
                 plot_objects= [Line(start=Struct(X=noop_scale(left), Y=noop_scale(top)), end=Struct(X=noop_scale(right), Y=noop_scale(bottom)), attributes=tick_line_properties, styles=tick_line_styles)]+ticks + labels)
 
     def line(self, data_collection, name, *axis):
-        self.graph.plots.append(PlotLine(data_collection, name, *axis))
+        self.graph.plots.append(PlotLine(data_collection, name, *axis, graph=self.graph))
         def find_axis(a_name):
             return next( a for a in axis if str(a) == a_name  )
 
