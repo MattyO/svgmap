@@ -79,21 +79,21 @@ class SVG2Test(unittest.TestCase):
 
             self.assertIsInstance(line_geometries[0], graph.Line)
 
-            self.assertEqual(line_geometries[0].start.datum, [0, "{{left}}" ])
-            self.assertEqual(line_geometries[0].end.datum,   [6, "{{left}}" ])
+            self.assertEqual(line_geometries[0].start.datum, [0, "{left}" ])
+            self.assertEqual(line_geometries[0].end.datum,   [6, "{left}" ])
 
-            self.assertEqual(line_geometries[1].start.datum, [0, "{{left}}" ])
-            self.assertEqual(line_geometries[1].end.datum,   [0, "{{left}} + 5" ])
+            self.assertEqual(line_geometries[1].start.datum, [0, "{left}" ])
+            self.assertEqual(line_geometries[1].end.datum,   [0, "{left} + 5" ])
 
             self.assertIsInstance(line_geometries[2], graph.Text)
-            self.assertEqual(line_geometries[2].point.datum, [0, "{{left}} + 5" ])
+            self.assertEqual(line_geometries[2].point.datum, [0, "{left} + 5" ])
             self.assertEqual(line_geometries[2].text, '')
 
-            self.assertEqual(line_geometries[13].start.datum, [6, "{{left}}" ])
-            self.assertEqual(line_geometries[13].end.datum,   [6, "{{left}} + 5" ])
+            self.assertEqual(line_geometries[13].start.datum, [6, "{left}" ])
+            self.assertEqual(line_geometries[13].end.datum,   [6, "{left} + 5" ])
 
             self.assertIsInstance(line_geometries[14], graph.Text)
-            self.assertEqual(line_geometries[14].point.datum, [6, "{{left}} + 5" ])
+            self.assertEqual(line_geometries[14].point.datum, [6, "{left} + 5" ])
             self.assertEqual(line_geometries[14].text, '')
 
 

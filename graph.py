@@ -21,7 +21,7 @@ class SvgType(object):
 
     def tag(self, item):
         item_name = type(item).__name__
-        if isinstance(item, Line):
+        if isinstance(item, (Line, geometry.Line)):
             return Template(self.templates[item_name]).render(start=item.start, end=item.end)
         if isinstance(item, Text):
             return ''
@@ -148,42 +148,38 @@ class AxisBase(object):
         self.collection=collection
 
     def apply_coordinate(self, plot_geometry, viewport):
-        try:
-            axis_size = next( a for a in viewport.axis if a.cls == type(self))
-            if isinstance(plot_geometry, Line):
-                start_axis = next( a for a in plot_geometry.start.axis if type(a) == type(self))
-                end_axis = next( a for a in plot_geometry.end.axis if type(a) == type(self))
-                viewport_bounds = start_axis.drawable_bounds(viewport.drawable)
-                data_bounds = plot_geometry.start.dc.bounds(start_axis)
-                g = start_axis.prop.graphable(plot_geometry.start.datum)
+        axis_size = next( a for a in viewport.axis if a.cls == type(self))
+        if isinstance(plot_geometry, (Line, geometry.Line)):
+            start_axis = next( a for a in plot_geometry.start.axis if type(a) == type(self))
+            end_axis = next( a for a in plot_geometry.end.axis if type(a) == type(self))
+            viewport_bounds = start_axis.drawable_bounds(viewport.drawable)
+            data_bounds = plot_geometry.start.dc.bounds(start_axis)
+            g = start_axis.prop.graphable(plot_geometry.start.datum)
 
-                scaled_g = single_scale(g, data_bounds, viewport_bounds)
+            scaled_g = single_scale(g, data_bounds, viewport_bounds)
 
-                plot_geometry.start.coordinates[self.__class__] = scaled_g
+            plot_geometry.start.coordinates[self.__class__] = scaled_g
 
-                viewport_bounds = end_axis.drawable_bounds(viewport.drawable)
-                data_bounds = plot_geometry.end.dc.bounds(end_axis)
-                g = end_axis.prop.graphable(plot_geometry.end.datum)
+            viewport_bounds = end_axis.drawable_bounds(viewport.drawable)
+            data_bounds = plot_geometry.end.dc.bounds(end_axis)
+            g = end_axis.prop.graphable(plot_geometry.end.datum)
 
-                scaled_g = single_scale(g, data_bounds, viewport_bounds)
+            scaled_g = single_scale(g, data_bounds, viewport_bounds)
 
-                plot_geometry.end.coordinates[self.__class__] = scaled_g
+            plot_geometry.end.coordinates[self.__class__] = scaled_g
 
-            if isinstance(plot_geometry, Text):
-                point_axis = next( a for a in plot_geometry.point.axis if type(a) == type(self))
-                plot_geometry.point.coordinates[self.__class__] = 0
-                viewport_bounds = point_axis.drawable_bounds(viewport.drawable)
-                data_bounds = plot_geometry.point.dc.bounds(point_axis)
-                g = point_axis.prop.graphable(plot_geometry.point.datum)
+        if isinstance(plot_geometry, Text):
+            point_axis = next( a for a in plot_geometry.point.axis if type(a) == type(self))
+            plot_geometry.point.coordinates[self.__class__] = 0
+            viewport_bounds = point_axis.drawable_bounds(viewport.drawable)
+            data_bounds = plot_geometry.point.dc.bounds(point_axis)
+            g = point_axis.prop.graphable(plot_geometry.point.datum)
 
-                scaled_g = single_scale(g, data_bounds, viewport_bounds)
+            scaled_g = single_scale(g, data_bounds, viewport_bounds)
 
-                plot_geometry.point.coordinates[self.__class__] = scaled_g
+            plot_geometry.point.coordinates[self.__class__] = scaled_g
 
-            return plot_geometry
-        except:
-            print(type(self))
-            raise
+        return plot_geometry
 
     @classmethod
     def size(cls, num, inverse=False):
