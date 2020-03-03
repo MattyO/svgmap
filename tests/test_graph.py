@@ -141,6 +141,53 @@ class SVG2Test(unittest.TestCase):
 
         g.svg2(after_create_coordinates=coordinate_callback)
 
+    def test_create_datatime_axis(self):
+        def geometry_callback(plot_geometries):
+            for g in plot_geometries['axis_X']:
+                if isinstance(g, graph.Line):
+                    print("Line")
+                    print(g.start.datum)
+                    print(g.end.datum)
+                if isinstance(g, graph.Text):
+                    print("Text")
+                    print(g.point.datum)
+
+        def coordinate_callback(plot_geometries):
+            line_geometries = plot_geometries['axis_X']
+
+            self.assertIsInstance(line_geometries[0], graph.Line)
+
+            self.assertEqual(line_geometries[0].start.coordinates[Y], 250)
+            self.assertEqual(line_geometries[0].start.coordinates[X], 50)
+            self.assertEqual(line_geometries[0].end.coordinates[Y], 50)
+            self.assertEqual(line_geometries[0].end.coordinates[X], 50)
+
+            self.assertEqual(line_geometries[1].start.coordinates[Y], 250)
+            self.assertEqual(line_geometries[1].start.coordinates[X], 50)
+            self.assertEqual(line_geometries[1].end.coordinates[Y], 250)
+            self.assertEqual(line_geometries[1].end.coordinates[X], 55)
+
+            self.assertEqual(line_geometries[2].point.coordinates[Y], 250)
+            self.assertEqual(line_geometries[2].point.coordinates[X], 55)
+
+            self.assertEqual(line_geometries[13].start.coordinates[Y], 50)
+            self.assertEqual(line_geometries[13].start.coordinates[X], 50)
+            self.assertEqual(line_geometries[13].end.coordinates[Y], 50)
+            self.assertEqual(line_geometries[13].end.coordinates[X], 55)
+
+            self.assertEqual(line_geometries[14].point.coordinates[Y], 50)
+            self.assertEqual(line_geometries[14].point.coordinates[X], 55)
+
+        g = Graph(Viewport(Y.size(300, inverse=True), X.size(800), padding=50, attributes={'height':Y, 'width':X}))
+
+        datetime_list = [ [datetime(2020, 1, day)] for day in range( 15,20 ) ]
+        datetime_collection = DataCollection(datetime_list , Property('default', 0, convert=lambda t: t.timestamp()))
+
+        g.create.axis(X(datetime_collection.properties.default), collection=datetime_collection, options={'position': {Y: 'bottom'}})
+
+        g.svg2(after_create_geometry=geometry_callback, after_create_coordinates=coordinate_callback)
+
+
 
     def test_create_lines(self):
         dc = DataCollection([[0, 0],[2, 1], [4, 3]], Property('first', 0), Property('second', 0))

@@ -203,12 +203,13 @@ def graph():
             inc_date(dc.meta.month.min, -timedelta(days=1)), 
             inc_date(dc.meta.month.max, timedelta(days=1)))
 
+    dl_data_collection = DataCollection(dl, Property('default', 0, convert=lambda t: t.timestamp()))
     x, y = X(dc.properties.month), Y(dc.properties.count)
 
     g = Graph(Viewport(Y.size(300, inverse=True), X.size(800), padding=30, attributes={'height':Y, 'width':X}))
     g.create.line(dc, 'counts', x, y )
-    g.create.axis(x, collection=dl, tick_size=5, tick_additional_offset=5, tick_text=lambda d: d.strftime("%Y") if d.month == 1 else "", tick_text_properties = {'text-anchor':"middle",  "dominant-baseline": 'hanging'})
-    g.create.axis(y, collection=[0, 100, 200, 300, 400, 500, 600, 700], tick_text_properties = {'text-anchor':"end"}, position={x: 'bottom'})
+    g.create.axis(x, collection=dl, tick_size=5, tick_additional_offset=5, tick_text=lambda d: d.strftime("%Y") if d.month == 1 else "", tick_text_properties = {'text-anchor':"middle",  "dominant-baseline": 'hanging'}, options={'position': {Y: 'bottom'}})
+    g.create.axis(y, collection=[0, 100, 200, 300, 400, 500, 600, 700], tick_text_properties = {'text-anchor':"end"},  options={'position': {X: 'left'}})
 
     #mdata = find_meta_data(time_data)
     time_data = to_timestamp(time_data, 0)

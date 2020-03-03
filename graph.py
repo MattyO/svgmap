@@ -4,6 +4,7 @@ from itertools import tee
 import uuid
 import inspect
 import copy
+from datetime import datetime
 
 from jinja2 import Template
 
@@ -24,6 +25,7 @@ class SvgType(object):
             return Template(self.templates[item_name]).render(start=item.start, end=item.end)
         if isinstance(item, Text):
             return ''
+        return ""
 
 class PlotLine(object):
     def __init__(self, data_collection, name, *axis, graph=None):
@@ -40,7 +42,10 @@ class PlotAxis(object):
 
     def __init__(self, axis, collection=[], options=None, graph=None):
         self.name = "axis_" + axis.__name__
-        self.dc = DataCollection(collection)
+        if isinstance(collection, DataCollection):
+            self.dc = collection
+        else:
+            self.dc = DataCollection(collection)
         self.axis = [axis(self.dc.properties.default)]
         self.options = options
         self.graph = graph
@@ -55,6 +60,7 @@ class PlotAxis(object):
         self.axis += [extra_axis_instance]
         single_axis = self.axis[0]
         geometries = []
+
         geometries += [Line(
             start=DCItem(self.dc, [self.dc.meta.default.min, '{' + viewport_prop_string + '}'], self.axis + [extra_axis_instance]),
             end = DCItem(self.dc, [self.dc.meta.default.max, '{' + viewport_prop_string + '}' ], self.axis + [extra_axis_instance])
@@ -73,7 +79,7 @@ class PlotAxis(object):
 
             text_dc.datum += ['{' + viewport_prop_string + '}' + " + " + str(tick_size)]
             text_dc.axis += [ extra_axis_instance ]
-            
+
             geometries  += [Line(start=start_tick_dc, end=end_tick_dc)]
             geometries  += [Text(point=text_dc)]
 
@@ -238,10 +244,25 @@ class Property(object):
 class MetaInfo(object):
     def __init__(self, data, prop):
         #TODO chagne min and max from graphable to value
+        #if isinstance(data[0], datetime):
+        #    alt_min = min([prop.parse(d) for d in data])
+        #    alt_max= max([prop.parse(d) for d in data])
+        #    alt_diff = alt_max - alt_min
+
+        #    self.alt = Struct(**{
+        #        'min': alt_min,
+        #        'max': alt_max,
+        #        'difference': alt_diff,
+
+        #    })
+
+        #try:
         self.min = min([prop.graphable(d) for d in data])
         self.max = max([prop.graphable(d) for d in data])
         self.difference = self.max - self.min
         self.type = next(iter(set(type(prop.value(d)) for d in data)), None)
+        #except:
+        #    pass
 
 class MetaProxy(object):
     def __init__(self, data_collection):
@@ -285,6 +306,7 @@ class DataCollection(object):
 
         self.data = data
         self.properties = Struct(**{ p.name: p for p in properties})
+        self._bounds = None
 
     @property
     def meta(self):
@@ -304,7 +326,7 @@ class DataCollection(object):
         self._bounds = {a: [mi, ma]}
 
     def bounds(self, a):
-        if type(a) in self._bounds:
+        if self._bounds is not None and type(a) in self._bounds:
             return self._bounds[type(a)]
 
         td = [ a.prop.graphable(d) for d in self.data  ]
@@ -481,7 +503,12 @@ class CreateFactory(object):
             },
             'position': args['options']['position']
         }
-        self.graph.plots.append(PlotAxis(axis.__class__, collection, plot_options, graph=self.graph))
+        if isinstance(axis, Y):
+            self.graph.plots.append(PlotAxis(axis.__class__, collection, plot_options, graph=self.graph))
+        if isinstance(axis, X):
+            data = [ i.timestamp() for i in collection]
+            #dl_data_collection = DataCollection(data, Property('default', 0, convert=lambda t: t.timestamp()))
+            self.graph.plots.append(PlotAxis(axis.__class__, data, plot_options, graph=self.graph))
 
         axis_size = next( a for a in self.graph.viewport.axis if a.cls == type(axis))
         drawable_info = axis_size.cls.drawable_info(axis_size, self.graph.viewport.padding)
