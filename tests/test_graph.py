@@ -216,7 +216,15 @@ class SVG2Test(unittest.TestCase):
         i.coordinates[X] = 1
         self.assertEqual(i.X, 1)
         self.assertEqual(i.dc, 'test')
-        
+
+
+    def test_graph_plot_bounds(self):
+        dc = DataCollection([[0, 0],[2, 1], [4, 8]], Property('first', 0), Property('second', 1))
+        g = Graph(Viewport(Y.size(300, inverse=True), X.size(800), padding=0, attributes={'height':Y, 'width':X}))
+        g.create.line(dc, 'test', X(dc.properties.first), Y(dc.properties.second))
+        g.create.axis(Y(dc.properties.second), collection=[0,1,2,3,4,5,6], options={'position': {X: 'left'}})
+
+        self.assertEqual(g.plot_bounds(Y), (0, 8))
 
 
 class ViewportTest(unittest.TestCase):

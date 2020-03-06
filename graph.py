@@ -147,7 +147,8 @@ class AxisBase(object):
         self.step = step
         self.collection=collection
 
-    def apply_coordinate(self, plot_geometry, viewport):
+    def apply_coordinate(self, plot_geometry, graph):
+        viewport = graph.viewport
         axis_size = next( a for a in viewport.axis if a.cls == type(self))
         if isinstance(plot_geometry, (Line, geometry.Line)):
             start_axis = next( a for a in plot_geometry.start.axis if type(a) == type(self))
@@ -395,6 +396,16 @@ class Graph(object):
 
 
 
+    def plot_bounds(self, axis_class):
+        bounds = []
+        for plot in self.plots:
+            plot_axis = next( (axis for axis in plot.axis if isinstance(axis, axis_class)), None)
+            if plot_axis is None: 
+                continue
+            bounds += plot.dc.bounds(plot_axis)
+
+        return (min(bounds), max(bounds))
+
     def svg2(self, **callbacks):
         #axis_geomitries = axis.create_geomitries(self.viewport, self.info.axis)
         #add create gemoetries for axis class.  plotable? axis have default.  jj
@@ -410,10 +421,11 @@ class Graph(object):
             if plot_geometry_callback_results  is not None:
                 plot_geometries = plot_geometry_callback_results 
 
+        # self.plots.boundS(axis)
         for plot in self.plots:
             for axis in plot.axis:
                 temp_plot_geometries = plot_geometries[plot.name]
-                plot_geometries[plot.name] = [axis.apply_coordinate(pg, self.viewport) for pg in temp_plot_geometries ]
+                plot_geometries[plot.name] = [axis.apply_coordinate(pg, self) for pg in temp_plot_geometries ]
 
         after_create_coordinates = callbacks.get('after_create_coordinates', None)
         if callable(after_create_coordinates):
